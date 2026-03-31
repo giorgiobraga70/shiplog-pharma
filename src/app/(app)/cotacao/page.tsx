@@ -102,8 +102,14 @@ export default function CotacaoPage() {
   const [empresa, setEmpresa] = useState('')
   const [contato, setContato] = useState('')
   const [emailContato, setEmailContato] = useState('')
+  const [telefone, setTelefone] = useState('')
   const [fornecedor, setFornecedor] = useState('Four Star')
   const [validade] = useState('30 dias')
+
+  // Filtros do combobox de produto
+  const [filterTipo, setFilterTipo] = useState('')
+  const [filterVolume, setFilterVolume] = useState('')
+  const [filterCor, setFilterCor] = useState('')
 
   // Condições comerciais
   const [pagamento, setPagamento] = useState('30% no ato do pedido + 70% antes do embarque')
@@ -124,14 +130,27 @@ export default function CotacaoPage() {
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
-  // Produtos filtrados (máx 20)
+  // Produtos filtrados (máx 20) — busca + filtros de tipo/volume/cor
   const filteredProducts = useMemo(() => {
-    if (!productSearch) return products.slice(0, 20)
-    const q = productSearch.toLowerCase()
-    return products
-      .filter(p => p.description.toLowerCase().includes(q) || p.partNumber.toLowerCase().includes(q))
-      .slice(0, 20)
-  }, [products, productSearch])
+    const colorMap: Record<string, string[]> = {
+      'Ambar': ['ambar', 'âmbar', 'amber'],
+      'Transparente': ['transparente', 'clear'],
+      'Branco': ['branco', 'white'],
+      'Azul': ['azul', 'blue'],
+    }
+    let list = products
+    if (filterTipo) list = list.filter(p => p.productType === filterTipo)
+    if (filterVolume) list = list.filter(p => p.description.toLowerCase().includes(filterVolume))
+    if (filterCor) {
+      const kws = colorMap[filterCor] || [filterCor.toLowerCase()]
+      list = list.filter(p => kws.some(kw => p.description.toLowerCase().includes(kw)))
+    }
+    if (productSearch) {
+      const q = productSearch.toLowerCase()
+      list = list.filter(p => p.description.toLowerCase().includes(q) || p.partNumber.toLowerCase().includes(q))
+    }
+    return list.slice(0, 20)
+  }, [products, productSearch, filterTipo, filterVolume, filterCor])
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -406,6 +425,17 @@ export default function CotacaoPage() {
               className={inputClass}
             />
           </div>
+          {/* Telefone */}
+          <div>
+            <label className={labelClass}>Telefone</label>
+            <input
+              type="tel"
+              value={telefone}
+              onChange={(e) => setTelefone(e.target.value)}
+              placeholder="+55 (11) 99999-9999"
+              className={inputClass}
+            />
+          </div>
           {/* Fornecedor */}
           <div>
             <label className={labelClass}>Fornecedor</label>
@@ -434,6 +464,48 @@ export default function CotacaoPage() {
         <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">
           Produtos
         </h2>
+
+        {/* Filtros de produto */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex-1 min-w-[140px]">
+            <label className={labelClass}>Tipo</label>
+            <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className={inputClass}>
+              <option value="">Todos os tipos</option>
+              <option value="Frasco">Frasco</option>
+              <option value="Ampola">Ampola</option>
+              <option value="Rolha">Rolha</option>
+              <option value="Selo Alum Flip">Selo Alum Flip</option>
+              <option value="Selo Alu-plas">Selo Alu-plas</option>
+            </select>
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <label className={labelClass}>Volume</label>
+            <select value={filterVolume} onChange={e => setFilterVolume(e.target.value)} className={inputClass}>
+              <option value="">Todos</option>
+              <option value="2ml">2ml</option>
+              <option value="3ml">3ml</option>
+              <option value="4ml">4ml</option>
+              <option value="5ml">5ml</option>
+              <option value="6ml">6ml</option>
+              <option value="8ml">8ml</option>
+              <option value="10ml">10ml</option>
+              <option value="15ml">15ml</option>
+              <option value="20ml">20ml</option>
+              <option value="30ml">30ml</option>
+              <option value="50ml">50ml</option>
+            </select>
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <label className={labelClass}>Cor</label>
+            <select value={filterCor} onChange={e => setFilterCor(e.target.value)} className={inputClass}>
+              <option value="">Todas</option>
+              <option value="Ambar">Âmbar</option>
+              <option value="Transparente">Transparente</option>
+              <option value="Branco">Branco</option>
+              <option value="Azul">Azul</option>
+            </select>
+          </div>
+        </div>
 
         {/* Linha de adição */}
         <div className="flex flex-wrap items-end gap-3 mb-5">

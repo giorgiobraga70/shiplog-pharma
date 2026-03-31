@@ -259,8 +259,7 @@ export default function EntradaDeDadosPage() {
 
         {/* Cabeçalho */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Entrada de Dados</h1>
-          <p className="text-[#6B7280] mt-1 text-base">Configure câmbio, custos e impostos</p>
+          <h1 className="text-3xl font-bold text-gray-900">Setup</h1>
         </div>
 
         {/* Barra de câmbio */}
