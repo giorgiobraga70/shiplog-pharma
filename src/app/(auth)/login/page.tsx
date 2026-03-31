@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -35,16 +36,17 @@ export default function LoginPage() {
       <div className="w-full max-w-md px-4">
         {/* Logo / Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl"
-              style={{ backgroundColor: '#0F6E56' }}
-            >
-              SP
-            </div>
+          <div className="inline-flex items-center justify-center mb-4 bg-white rounded-2xl px-8 py-4 shadow-lg">
+            <Image
+              src="/logo.png"
+              alt="Shiplog Pharma"
+              width={180}
+              height={80}
+              style={{ objectFit: 'contain' }}
+              priority
+            />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Shiplog Pharma</h1>
-          <p className="text-blue-200 mt-1 text-sm">Sistema de Cotação</p>
+          <p className="text-blue-200 mt-2 text-sm">Sistema de Cotação</p>
         </div>
 
         {/* Card */}

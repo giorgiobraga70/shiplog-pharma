@@ -193,26 +193,15 @@ ${innerHtml}
 
           {/* ── Header ───────────────────────────────────────────────── */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-            {/* Esquerda: logo + nome */}
+            {/* Esquerda: logo */}
             <div>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '48px',
-                  height: '48px',
-                  backgroundColor: '#0C3460',
-                  borderRadius: '6px',
-                  marginBottom: '4px',
-                }}
-              >
-                <span style={{ color: '#fff', fontSize: '10px', fontWeight: 700, letterSpacing: '-0.5px' }}>SLP</span>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: '#0C3460', lineHeight: 1.1 }}>
-                SHIPLOG PHARMA
-              </div>
-              <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="Shiplog Pharma"
+                style={{ height: '60px', objectFit: 'contain', display: 'block' }}
+              />
+              <div style={{ fontSize: '10px', color: '#64748B', marginTop: '4px' }}>
                 Frascos e Ampolas farmacêuticos
               </div>
             </div>

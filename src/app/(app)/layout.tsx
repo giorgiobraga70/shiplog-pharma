@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -45,9 +46,16 @@ function Navbar() {
       <div className="h-full max-w-screen-xl mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-6">
-          <span className="text-white font-bold text-base tracking-tight select-none">
-            Shiplog Pharma
-          </span>
+          <div style={{ backgroundColor: 'white', borderRadius: '6px', padding: '3px 8px', display: 'flex', alignItems: 'center' }}>
+            <Image
+              src="/logo.png"
+              alt="Shiplog Pharma"
+              width={110}
+              height={32}
+              style={{ objectFit: 'contain' }}
+              priority
+            />
+          </div>
 
           {/* Nav links */}
           <div className="flex items-center gap-1">
