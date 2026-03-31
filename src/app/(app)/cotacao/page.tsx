@@ -102,9 +102,7 @@ export default function CotacaoPage() {
   const [empresa, setEmpresa] = useState('')
   const [contato, setContato] = useState('')
   const [emailContato, setEmailContato] = useState('')
-  const [incoterm, setIncoterm] = useState('FOB')
-  const [moeda] = useState('USD')
-  const [usdBrl, setUsdBrl] = useState(5.25)
+  const [fornecedor, setFornecedor] = useState('Four Star')
   const [validade] = useState('30 dias')
 
   // Condições comerciais
@@ -146,8 +144,8 @@ export default function CotacaoPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Params derivados (com usdBrl atualizado do campo)
-  const params = useMemo<GlobalParams>(() => ({ ...DEFAULT_PARAMS, usdBrl }), [usdBrl])
+  // Params globais (usdBrl vem do DEFAULT_PARAMS/setup)
+  const params = DEFAULT_PARAMS
 
   // Totais
   const totals = useMemo(() => {
@@ -212,8 +210,8 @@ export default function CotacaoPage() {
           client_company: empresa,
           client_email: emailContato,
           client_contact: contato,
-          incoterm,
-          usd_brl: usdBrl,
+          supplier: fornecedor,
+          usd_brl: DEFAULT_PARAMS.usdBrl,
           payment_terms: pagamento,
           delivery_days: parseInt(prazo) || 30,
           destination_port: portoDestino,
@@ -289,8 +287,8 @@ export default function CotacaoPage() {
       clientCompany: empresa,
       clientEmail: emailContato,
       clientContact: contato,
-      incoterm: incoterm,
-      usdBrl: usdBrl,
+      fornecedor: fornecedor,
+      usdBrl: DEFAULT_PARAMS.usdBrl,
       paymentTerms: pagamento,
       deliveryDays: parseInt(prazo) || 30,
       destinationPort: portoDestino,
@@ -408,37 +406,17 @@ export default function CotacaoPage() {
               className={inputClass}
             />
           </div>
-          {/* Incoterm */}
+          {/* Fornecedor */}
           <div>
-            <label className={labelClass}>Incoterm</label>
+            <label className={labelClass}>Fornecedor</label>
             <select
-              value={incoterm}
-              onChange={(e) => setIncoterm(e.target.value)}
+              value={fornecedor}
+              onChange={(e) => setFornecedor(e.target.value)}
               className={inputClass}
             >
-              <option value="FOB">FOB</option>
-              <option value="CIF">CIF</option>
-              <option value="DAP">DAP</option>
+              <option value="Four Star">Four Star</option>
+              <option value="Munan">Munan</option>
             </select>
-          </div>
-          {/* Moeda */}
-          <div>
-            <label className={labelClass}>Moeda</label>
-            <select value={moeda} disabled className={`${inputClass} bg-gray-50 text-gray-500`}>
-              <option value="USD">USD</option>
-            </select>
-          </div>
-          {/* Taxa USD/BRL */}
-          <div>
-            <label className={labelClass}>Taxa USD / BRL</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={usdBrl}
-              onChange={(e) => setUsdBrl(parseFloat(e.target.value) || 5.25)}
-              className={`${inputClass} font-mono`}
-            />
           </div>
           {/* Validade */}
           <div>

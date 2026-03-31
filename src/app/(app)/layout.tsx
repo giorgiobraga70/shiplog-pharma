@@ -32,8 +32,8 @@ function Navbar() {
         href={href}
         className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
           active
-            ? 'bg-white/20 text-white'
-            : 'text-blue-100 hover:bg-white/10 hover:text-white'
+            ? 'bg-gray-200 text-gray-900'
+            : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
         }`}
       >
         {label}
@@ -42,40 +42,38 @@ function Navbar() {
   }
 
   return (
-    <nav className="flex-shrink-0" style={{ backgroundColor: '#0C3460', height: '48px' }}>
+    <nav className="flex-shrink-0 border-b border-gray-200 shadow-sm" style={{ backgroundColor: '#F1F5F9', height: '64px' }}>
       <div className="h-full max-w-screen-xl mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-6">
-          <div style={{ backgroundColor: 'white', borderRadius: '6px', padding: '3px 8px', display: 'flex', alignItems: 'center' }}>
-            <Image
-              src="/logo.png"
-              alt="Shiplog Pharma"
-              width={110}
-              height={32}
-              style={{ objectFit: 'contain' }}
-              priority
-            />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Shiplog Pharma"
+            width={140}
+            height={48}
+            style={{ objectFit: 'contain' }}
+            priority
+          />
 
           {/* Nav links */}
           <div className="flex items-center gap-1">
             {navLink('/cotacao', 'Cotação')}
             {navLink('/historico', 'Histórico')}
-            {navLink('/entrada-dados', 'Entrada de Dados')}
-            {navLink('/produtos', 'Produtos')}
+            {navLink('/admin/entrada', 'Setup')}
+            {navLink('/admin/produtos', 'Produtos')}
           </div>
         </div>
 
         {/* User area */}
         <div className="flex items-center gap-3">
           {userEmail && (
-            <span className="text-blue-200 text-xs hidden sm:block truncate max-w-[180px]">
+            <span className="text-gray-500 text-xs hidden sm:block truncate max-w-[180px]">
               {userEmail}
             </span>
           )}
           <button
             onClick={handleSignOut}
-            className="text-blue-100 hover:text-white text-sm font-medium px-3 py-1 rounded-md hover:bg-white/10 transition-colors"
+            className="text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1 rounded-md hover:bg-gray-200 transition-colors"
           >
             Sair
           </button>
