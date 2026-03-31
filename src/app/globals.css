@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter), Inter, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Identidade visual Shiplog Pharma */
+  --color-primary: #0C3460;
+  --color-secondary: #0F6E56;
+  --color-surface: #F9FAFB;
+  --color-text-muted: #6B7280;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), Inter, sans-serif;
+}
+
+/* Utilitário: fontes mono para números */
+.font-numbers {
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
