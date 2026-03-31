@@ -2,7 +2,7 @@
  * Serviço de cotação — orquestra precificação, persistência e geração de PDF
  */
 
-import { calcQuotation, GlobalParams, QuotationItem, QuotationTotal } from './pricingEngine'
+import { calcQuotation, GlobalParams, QuotationItem, QuotationResult } from './pricingEngine'
 
 export type QuotationStatus = 'draft' | 'sent' | 'approved' | 'lost'
 
@@ -25,7 +25,7 @@ export interface QuotationMeta {
 }
 
 export interface FullQuotation extends QuotationMeta {
-  pricing: QuotationTotal
+  pricing: QuotationResult
   paramsSnapshot: GlobalParams   // snapshot dos parâmetros usados
   createdAt: Date
 }
