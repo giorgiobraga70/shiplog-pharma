@@ -49,8 +49,8 @@ function Navbar() {
           <Image
             src="/logo.png"
             alt="Shiplog Pharma"
-            width={160}
-            height={54}
+            width={108}
+            height={36}
             style={{ objectFit: 'contain', mixBlendMode: 'multiply' }}
             priority
           />

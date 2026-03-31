@@ -112,8 +112,8 @@ export default function CotacaoPage() {
   const [filterCor, setFilterCor] = useState('')
 
   // Condições comerciais
-  const [pagamento, setPagamento] = useState('30% no ato do pedido + 70% antes do embarque')
-  const [prazo, setPrazo] = useState('30 dias após pagamento inicial')
+  const [pagamento, setPagamento] = useState('50% no ato do pedido + 50% na entrega')
+  const [prazo, setPrazo] = useState('90 dias após pagamento inicial')
   const [portoDestino, setPortoDestino] = useState('Porto de Santos, SP - Brazil')
 
   // Produtos do banco
@@ -448,13 +448,33 @@ export default function CotacaoPage() {
               <option value="Munan">Munan</option>
             </select>
           </div>
-          {/* Validade */}
+          {/* Prazo de Validade */}
           <div>
-            <label className={labelClass}>Validade</label>
+            <label className={labelClass}>Prazo de Validade</label>
             <select defaultValue="30" className={inputClass}>
               <option value="30">30 dias</option>
               <option value="60">60 dias</option>
             </select>
+          </div>
+          {/* Condições de pagamento */}
+          <div className="md:col-span-2 lg:col-span-2">
+            <label className={labelClass}>Condições de pagamento</label>
+            <input
+              type="text"
+              value={pagamento}
+              onChange={(e) => setPagamento(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          {/* Prazo de entrega */}
+          <div>
+            <label className={labelClass}>Prazo de entrega</label>
+            <input
+              type="text"
+              value={prazo}
+              onChange={(e) => setPrazo(e.target.value)}
+              className={inputClass}
+            />
           </div>
         </div>
       </section>
@@ -516,7 +536,7 @@ export default function CotacaoPage() {
                 type="text"
                 value={productSearch}
                 onChange={e => { setProductSearch(e.target.value); setShowDropdown(true) }}
-                onFocus={() => setShowDropdown(true)}
+                onFocus={() => { setProductSearch(''); setShowDropdown(true) }}
                 onKeyDown={e => e.key === 'Escape' && setShowDropdown(false)}
                 placeholder={loadingProducts ? 'Carregando produtos...' : 'Digite para buscar produto...'}
                 disabled={loadingProducts}
@@ -647,42 +667,6 @@ export default function CotacaoPage() {
               </tfoot>
             )}
           </table>
-        </div>
-      </section>
-
-      {/* ── Condições Comerciais ─────────────────────────────────────────── */}
-      <section className={cardClass}>
-        <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">
-          Condições Comerciais
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label className={labelClass}>Condições de pagamento</label>
-            <textarea
-              rows={2}
-              value={pagamento}
-              onChange={(e) => setPagamento(e.target.value)}
-              className={`${inputClass} resize-none`}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Prazo de entrega</label>
-            <input
-              type="text"
-              value={prazo}
-              onChange={(e) => setPrazo(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Porto de destino</label>
-            <input
-              type="text"
-              value={portoDestino}
-              onChange={(e) => setPortoDestino(e.target.value)}
-              className={inputClass}
-            />
-          </div>
         </div>
       </section>
 
