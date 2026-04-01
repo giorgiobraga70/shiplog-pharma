@@ -281,7 +281,7 @@ export default function CotacaoPage() {
       usd_brl: DEFAULT_PARAMS.usdBrl,
       payment_terms: pagamento,
       delivery_days: parseInt(prazo) || 30,
-      destination_port: portoDestino,
+      destination_port: cidade ? `${cidade}${estado ? ' - ' + estado : ''}` : '',
       validity_days: 30,
       items: lineItems.map((li) => ({
         description: li.product.description,
