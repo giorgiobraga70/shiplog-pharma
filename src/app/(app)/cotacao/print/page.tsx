@@ -230,9 +230,10 @@ ${innerHtml}
             <div><span style={{ color: '#64748B' }}>Contato: </span>{data.clientContact || '—'}</div>
             <div><span style={{ color: '#64748B' }}>Telefone: </span>{data.clientPhone || '—'}</div>
             <div><span style={{ color: '#64748B' }}>E-mail: </span>{data.clientEmail || '—'}</div>
-            {enderecoCompleto && (
-              <div><span style={{ color: '#64748B' }}>Endereço: </span>{enderecoCompleto}</div>
-            )}
+            <div style={{ gridColumn: 'span 2' }}>
+              <span style={{ color: '#64748B' }}>Endereço: </span>
+              {enderecoCompleto || '—'}
+            </div>
           </div>
 
           {/* ── Tabela de itens ─────────────────────────────────────────── */}
