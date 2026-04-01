@@ -338,12 +338,8 @@ ${innerHtml}
               {data.paymentTerms}
             </div>
             <div>
-              <span style={{ color: '#64748B', fontWeight: 600 }}>Moeda/Incoterm: </span>
-              USD {data.incoterm} Shanghai Port | BRL DAP {data.destinationPort}
-            </div>
-            <div>
-              <span style={{ color: '#64748B', fontWeight: 600 }}>Condições de Entrega: </span>
-              {data.deliveryDays} dias após pagamento inicial
+              <span style={{ color: '#64748B', fontWeight: 600 }}>Prazo de Entrega: </span>
+              {data.deliveryDays} dias
             </div>
             <div>
               <span style={{ color: '#64748B', fontWeight: 600 }}>Validade da Cotação: </span>
