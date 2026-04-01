@@ -18,6 +18,7 @@ interface PrintData {
   paymentTerms: string
   deliveryDays: number
   validityDays: number
+  fornecedor?: string
   items: Array<{
     description: string
     partNumber: string
@@ -149,7 +150,7 @@ ${innerHtml}
     )
   }
 
-  // Endereço completo
+  // Endereço completo numa linha
   const enderecoCompleto = [
     data.clientAddress,
     data.clientCity,
@@ -215,6 +216,7 @@ ${innerHtml}
           <div style={{ height: '2px', backgroundColor: '#0C3460', marginBottom: '7px' }} />
 
           {/* ── Dados do cliente ────────────────────────────────────────── */}
+          {/* Removidos: Cond. Pagamento, Prazo de Entrega, Validade (já estão no rodapé) */}
           <div style={{
             display: 'grid', gridTemplateColumns: '1fr 1fr',
             gap: '2px 20px', fontSize: '10px', marginBottom: '8px',
@@ -231,28 +233,49 @@ ${innerHtml}
             {enderecoCompleto && (
               <div><span style={{ color: '#64748B' }}>Endereço: </span>{enderecoCompleto}</div>
             )}
-            <div><span style={{ color: '#64748B' }}>Cond. Pagamento: </span>{data.paymentTerms || '—'}</div>
-            <div><span style={{ color: '#64748B' }}>Prazo de Entrega: </span>{data.deliveryDays ? `${data.deliveryDays} dias` : '—'}</div>
-            <div><span style={{ color: '#64748B' }}>Validade: </span>{data.validityDays ? `${data.validityDays} dias` : '—'}</div>
           </div>
 
           {/* ── Tabela de itens ─────────────────────────────────────────── */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: '0' }}>
+          {/* table-layout: fixed para distribuição igual das 6 colunas de preço */}
+          <table style={{
+            width: '100%', borderCollapse: 'collapse', fontSize: '10px',
+            marginBottom: '0', tableLayout: 'fixed',
+          }}>
+            <colgroup>
+              <col style={{ width: '2%' }} />   {/* N° */}
+              <col style={{ width: '16%' }} />  {/* Descrição */}
+              <col style={{ width: '10%' }} />  {/* Part Number */}
+              <col style={{ width: '7%' }} />   {/* NCM */}
+              <col style={{ width: '4%' }} />   {/* Vol. */}
+              <col style={{ width: '6%' }} />   {/* Tamanho */}
+              <col style={{ width: '4%' }} />   {/* UN/CX */}
+              <col style={{ width: '4%' }} />   {/* QTD CX */}
+              <col style={{ width: '5%' }} />   {/* QTD UN */}
+              {/* 6 colunas de preço — largura igual: 42% ÷ 6 = 7% cada */}
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '7%' }} />
+            </colgroup>
             <thead>
               <tr style={{ backgroundColor: '#0C3460', color: '#fff' }}>
-                <th style={thStyle('center', '22px')}>N°</th>
-                <th style={thStyle('left')}>Descrição</th>
-                <th style={thStyle('left', '70px')}>Part Number</th>
-                <th style={thStyle('center', '72px')}>NCM</th>
-                <th style={thStyle('center', '42px')}>Vol.</th>
-                <th style={thStyle('center', '72px')}>Tamanho</th>
-                <th style={thStyle('right', '50px')}>UN/CX</th>
-                <th style={thStyle('right', '68px')}>UN C/Imp.</th>
-                <th style={thStyle('right', '68px')}>CX C/Imp.</th>
-                <th style={thStyle('right', '65px')}>UN S/IPI</th>
-                <th style={thStyle('right', '65px')}>CX S/IPI</th>
-                <th style={thStyle('right', '65px')}>UN S/Imp.</th>
-                <th style={thStyle('right', '65px')}>CX S/Imp.</th>
+                <th style={thStyle('center')}>N°</th>
+                <th style={thStyle('center')}>Descrição</th>
+                <th style={thStyle('center')}>Part Number</th>
+                <th style={thStyle('center')}>NCM</th>
+                <th style={thStyle('center')}>Vol.</th>
+                <th style={thStyle('center')}>Tamanho</th>
+                <th style={thStyle('center')}>UN/CX</th>
+                <th style={thStyle('center')}>QTD CX</th>
+                <th style={thStyle('center')}>QTD UN</th>
+                <th style={thStyle('center')}>UN C/Imp.</th>
+                <th style={thStyle('center')}>CX C/Imp.</th>
+                <th style={thStyle('center')}>UN S/IPI</th>
+                <th style={thStyle('center')}>CX S/IPI</th>
+                <th style={thStyle('center')}>UN S/Imp.</th>
+                <th style={thStyle('center')}>CX S/Imp.</th>
               </tr>
             </thead>
             <tbody>
@@ -263,14 +286,22 @@ ${innerHtml}
                 }}>
                   <td style={tdStyle('center')}>{idx + 1}</td>
                   <td style={tdStyle('left')}>{item.description}</td>
-                  <td style={{ ...tdStyle('left'), fontFamily: 'monospace', fontSize: '9px' }}>{item.partNumber}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontSize: '9px', wordBreak: 'break-all' }}>
+                    {item.partNumber}
+                  </td>
                   <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontSize: '9px' }}>{item.ncmCode || '—'}</td>
                   <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
                     {item.volumeMl != null ? `${item.volumeMl}ml` : '—'}
                   </td>
                   <td style={{ ...tdStyle('center'), fontSize: '9px' }}>{item.tamanho || '—'}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
                     {item.pcsPerBox.toLocaleString('pt-BR')}
+                  </td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
+                    {item.qtyBoxes.toLocaleString('pt-BR')}
+                  </td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
+                    {item.qtyUnits.toLocaleString('pt-BR')}
                   </td>
                   <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 600 }}>{brl(item.finalPriceUnit)}</td>
                   <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{brl(item.finalPriceBox)}</td>
@@ -285,24 +316,34 @@ ${innerHtml}
               <tr style={{ backgroundColor: '#EFF6FF', borderTop: '2px solid #93C5FD' }}>
                 <td style={tdStyle('center')} />
                 <td style={{ ...tdStyle('left'), fontWeight: 700, color: '#1E3A5F', fontSize: '10px' }}>
-                  TOTAL — {data.totals.boxes} cx / {data.totals.units.toLocaleString('pt-BR')} un
+                  TOTAL
                 </td>
-                <td style={tdStyle('left')} />
                 <td style={tdStyle('center')} />
                 <td style={tdStyle('center')} />
                 <td style={tdStyle('center')} />
-                <td style={tdStyle('right')} />
-                {/* UN C/Imp total */}
+                <td style={tdStyle('center')} />
+                <td style={tdStyle('center')} />
+                {/* QTD CX total */}
+                <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontWeight: 700 }}>
+                  {data.totals.boxes.toLocaleString('pt-BR')}
+                </td>
+                {/* QTD UN total */}
+                <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontWeight: 700 }}>
+                  {data.totals.units.toLocaleString('pt-BR')}
+                </td>
+                {/* UN C/Imp — vazio */}
                 <td style={tdStyle('right')} />
                 {/* CX C/Imp: grand total BRL */}
                 <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700, color: '#0C3460' }}>
                   R$ {brl(data.totals.grandTotalBrl)}
                 </td>
+                {/* UN S/IPI — vazio */}
                 <td style={tdStyle('right')} />
                 {/* CX S/IPI total */}
                 <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700, color: '#1E40AF' }}>
                   R$ {brl(data.totals.grandTotalSIpiBrl ?? 0)}
                 </td>
+                {/* UN S/Imp — vazio */}
                 <td style={tdStyle('right')} />
                 {/* CX S/Imp total */}
                 <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700, color: '#065F46' }}>
@@ -315,7 +356,7 @@ ${innerHtml}
           {/* Linha divisória */}
           <div style={{ height: '1px', backgroundColor: '#CBD5E1', margin: '8px 0' }} />
 
-          {/* ── Condições comerciais ────────────────────────────────────── */}
+          {/* ── Condições comerciais (rodapé) ───────────────────────────── */}
           <div style={{
             backgroundColor: '#F9FAFB', border: '1px solid #E2E8F0', borderRadius: '4px',
             padding: '6px 10px', fontSize: '10px', display: 'grid',
@@ -349,24 +390,29 @@ ${innerHtml}
 
 // ── Helpers de estilo inline ──────────────────────────────────────────────────
 
-function thStyle(align: 'left' | 'right' | 'center', width?: string): React.CSSProperties {
+function thStyle(align: 'left' | 'right' | 'center'): React.CSSProperties {
   return {
-    padding: '5px 6px',
+    padding: '5px 4px',
     textAlign: align,
+    verticalAlign: 'middle',
     fontWeight: 600,
     fontSize: '9px',
     letterSpacing: '0.3px',
-    width: width,
     whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     borderRight: '1px solid rgba(255,255,255,0.15)',
   }
 }
 
 function tdStyle(align: 'left' | 'right' | 'center'): React.CSSProperties {
   return {
-    padding: '4px 6px',
+    padding: '4px 4px',
     textAlign: align,
     borderRight: '1px solid #CBD5E1',
     verticalAlign: 'middle',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   }
 }
