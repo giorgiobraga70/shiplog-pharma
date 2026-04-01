@@ -8,11 +8,15 @@ interface PrintData {
   clientCompany: string
   clientEmail: string
   clientContact: string
-  incoterm: string
+  clientPhone?: string
+  clientAddress?: string
+  clientCity?: string
+  clientState?: string
+  clientCep?: string
+  fornecedor?: string
   usdBrl: number
   paymentTerms: string
   deliveryDays: number
-  destinationPort: string
   validityDays: number
   items: Array<{
     description: string
