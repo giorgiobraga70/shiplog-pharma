@@ -236,10 +236,15 @@ ${innerHtml}
           >
             <div><span style={{ color: '#64748B' }}>Empresa: </span><strong>{data.clientCompany || '—'}</strong></div>
             <div><span style={{ color: '#64748B' }}>Cotação N°: </span><strong style={{ fontFamily: 'monospace' }}>{data.quoteNumber}</strong></div>
-            <div><span style={{ color: '#64748B' }}>Email: </span>{data.clientEmail || '—'}</div>
-            <div><span style={{ color: '#64748B' }}>Data: </span>{data.date}</div>
             <div><span style={{ color: '#64748B' }}>Contato: </span>{data.clientContact || '—'}</div>
-            <div><span style={{ color: '#64748B' }}>Responsável: </span>Shiplog Pharma</div>
+            <div><span style={{ color: '#64748B' }}>Data: </span>{data.date}</div>
+            <div><span style={{ color: '#64748B' }}>E-mail: </span>{data.clientEmail || '—'}</div>
+            <div><span style={{ color: '#64748B' }}>Telefone: </span>{data.clientPhone || '—'}</div>
+            {data.clientAddress && <div><span style={{ color: '#64748B' }}>Endereço: </span>{data.clientAddress}{data.clientCity ? `, ${data.clientCity}` : ''}{data.clientState ? ` - ${data.clientState}` : ''}{data.clientCep ? ` CEP ${data.clientCep}` : ''}</div>}
+            <div><span style={{ color: '#64748B' }}>Fornecedor: </span>{data.fornecedor || '—'}</div>
+            <div><span style={{ color: '#64748B' }}>Cond. Pagamento: </span>{data.paymentTerms || '—'}</div>
+            <div><span style={{ color: '#64748B' }}>Prazo de Entrega: </span>{data.deliveryDays ? `${data.deliveryDays} dias` : '—'}</div>
+            <div><span style={{ color: '#64748B' }}>Validade: </span>{data.validityDays ? `${data.validityDays} dias` : '—'}</div>
           </div>
 
           {/* ── Tabela de itens ──────────────────────────────────────── */}

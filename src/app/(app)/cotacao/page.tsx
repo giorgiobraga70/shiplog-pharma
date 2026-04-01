@@ -103,8 +103,12 @@ export default function CotacaoPage() {
   const [contato, setContato] = useState('')
   const [emailContato, setEmailContato] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [endereco, setEndereco] = useState('')
+  const [cidade, setCidade] = useState('')
+  const [estado, setEstado] = useState('')
+  const [cep, setCep] = useState('')
   const [fornecedor, setFornecedor] = useState('Four Star')
-  const [validade] = useState('30 dias')
+  const [prazoValidade, setPrazoValidade] = useState('30')
 
   // Filtros do combobox de produto
   const [filterTipo, setFilterTipo] = useState('')
@@ -113,8 +117,7 @@ export default function CotacaoPage() {
 
   // Condições comerciais
   const [pagamento, setPagamento] = useState('50% no ato do pedido + 50% na entrega')
-  const [prazo, setPrazo] = useState('90 dias após pagamento inicial')
-  const [portoDestino, setPortoDestino] = useState('Porto de Santos, SP - Brazil')
+  const [prazo, setPrazo] = useState('90')
 
   // Produtos do banco
   const [products, setProducts] = useState<Product[]>([])
@@ -229,12 +232,16 @@ export default function CotacaoPage() {
           client_company: empresa,
           client_email: emailContato,
           client_contact: contato,
+          client_phone: telefone,
+          client_address: endereco,
+          client_city: cidade,
+          client_state: estado,
+          client_cep: cep,
           supplier: fornecedor,
           usd_brl: DEFAULT_PARAMS.usdBrl,
           payment_terms: pagamento,
-          delivery_days: parseInt(prazo) || 30,
-          destination_port: portoDestino,
-          validity_days: 30,
+          delivery_days: parseInt(prazo) || 90,
+          validity_days: parseInt(prazoValidade) || 30,
           items: lineItems.map((li) => ({
             description: li.product.description,
             partNumber: li.product.partNumber,
@@ -306,12 +313,16 @@ export default function CotacaoPage() {
       clientCompany: empresa,
       clientEmail: emailContato,
       clientContact: contato,
+      clientPhone: telefone,
+      clientAddress: endereco,
+      clientCity: cidade,
+      clientState: estado,
+      clientCep: cep,
       fornecedor: fornecedor,
       usdBrl: DEFAULT_PARAMS.usdBrl,
       paymentTerms: pagamento,
-      deliveryDays: parseInt(prazo) || 30,
-      destinationPort: portoDestino,
-      validityDays: 30,
+      deliveryDays: parseInt(prazo) || 90,
+      validityDays: parseInt(prazoValidade) || 30,
       items: lineItems.map((item) => ({
         description: item.product.description,
         partNumber: item.product.partNumber,
@@ -371,110 +382,93 @@ export default function CotacaoPage() {
         <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">
           Dados da Cotação
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {/* Número */}
+        {/* Linha 1: Número, Data, Empresa, Contato */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className={labelClass}>Número</label>
-            <input
-              type="text"
-              readOnly
-              value={quotationNumber}
-              className={`${inputClass} bg-gray-50 text-gray-500 cursor-not-allowed font-mono`}
-            />
+            <input type="text" readOnly value={quotationNumber}
+              className={`${inputClass} bg-gray-50 text-gray-500 cursor-not-allowed font-mono`} />
           </div>
-          {/* Data */}
           <div>
             <label className={labelClass}>Data</label>
-            <input
-              type="text"
-              readOnly
-              value={formatDateBR(today)}
-              className={`${inputClass} bg-gray-50 text-gray-500 cursor-not-allowed`}
-            />
+            <input type="text" readOnly value={formatDateBR(today)}
+              className={`${inputClass} bg-gray-50 text-gray-500 cursor-not-allowed`} />
           </div>
-          {/* Empresa */}
           <div>
-            <label className={labelClass}>Empresa cliente</label>
-            <input
-              type="text"
-              value={empresa}
-              onChange={(e) => setEmpresa(e.target.value)}
-              placeholder="Nome da empresa"
-              className={inputClass}
-            />
+            <label className={labelClass}>Empresa</label>
+            <input type="text" value={empresa} onChange={(e) => setEmpresa(e.target.value)}
+              placeholder="Nome da empresa" className={inputClass} />
           </div>
-          {/* Contato */}
           <div>
             <label className={labelClass}>Contato</label>
-            <input
-              type="text"
-              value={contato}
-              onChange={(e) => setContato(e.target.value)}
-              placeholder="Nome do contato"
-              className={inputClass}
-            />
+            <input type="text" value={contato} onChange={(e) => setContato(e.target.value)}
+              placeholder="Nome do contato" className={inputClass} />
           </div>
-          {/* E-mail */}
+        </div>
+        {/* Linha 2: E-mail, Telefone, Endereço, Cidade, Estado, CEP */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
           <div>
             <label className={labelClass}>E-mail</label>
-            <input
-              type="email"
-              value={emailContato}
-              onChange={(e) => setEmailContato(e.target.value)}
-              placeholder="contato@empresa.com"
-              className={inputClass}
-            />
+            <input type="email" value={emailContato} onChange={(e) => setEmailContato(e.target.value)}
+              placeholder="contato@empresa.com" className={inputClass} />
           </div>
-          {/* Telefone */}
           <div>
             <label className={labelClass}>Telefone</label>
-            <input
-              type="tel"
-              value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
-              placeholder="+55 (11) 99999-9999"
-              className={inputClass}
-            />
+            <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)}
+              placeholder="+55 (11) 99999-9999" className={inputClass} />
           </div>
-          {/* Fornecedor */}
           <div>
-            <label className={labelClass}>Fornecedor</label>
-            <select
-              value={fornecedor}
-              onChange={(e) => setFornecedor(e.target.value)}
-              className={inputClass}
-            >
-              <option value="Four Star">Four Star</option>
-              <option value="Munan">Munan</option>
+            <label className={labelClass}>Endereço</label>
+            <input type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)}
+              placeholder="Rua, número" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Cidade</label>
+            <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)}
+              placeholder="Cidade" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Estado</label>
+            <input type="text" value={estado} onChange={(e) => setEstado(e.target.value)}
+              placeholder="SP" maxLength={2} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>CEP</label>
+            <input type="text" value={cep} onChange={(e) => setCep(e.target.value)}
+              placeholder="00000-000" className={inputClass} />
+          </div>
+        </div>
+        {/* Linha 3: Cond. Pagamento, Prazo Entrega, Prazo Validade, Fornecedor */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label className={labelClass}>Condições de pagamento</label>
+            <input type="text" value={pagamento} onChange={(e) => setPagamento(e.target.value)}
+              className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Prazo de entrega</label>
+            <select value={prazo} onChange={(e) => setPrazo(e.target.value)} className={inputClass}>
+              <option value="15">15 dias</option>
+              <option value="30">30 dias</option>
+              <option value="45">45 dias</option>
+              <option value="60">60 dias</option>
+              <option value="75">75 dias</option>
+              <option value="90">90 dias</option>
             </select>
           </div>
-          {/* Prazo de Validade */}
           <div>
             <label className={labelClass}>Prazo de Validade</label>
-            <select defaultValue="30" className={inputClass}>
+            <select value={prazoValidade} onChange={(e) => setPrazoValidade(e.target.value)} className={inputClass}>
               <option value="30">30 dias</option>
               <option value="60">60 dias</option>
             </select>
           </div>
-          {/* Condições de pagamento */}
-          <div className="md:col-span-2 lg:col-span-2">
-            <label className={labelClass}>Condições de pagamento</label>
-            <input
-              type="text"
-              value={pagamento}
-              onChange={(e) => setPagamento(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          {/* Prazo de entrega */}
           <div>
-            <label className={labelClass}>Prazo de entrega</label>
-            <input
-              type="text"
-              value={prazo}
-              onChange={(e) => setPrazo(e.target.value)}
-              className={inputClass}
-            />
+            <label className={labelClass}>Fornecedor</label>
+            <select value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} className={inputClass}>
+              <option value="Four Star">Four Star</option>
+              <option value="Munan">Munan</option>
+            </select>
           </div>
         </div>
       </section>

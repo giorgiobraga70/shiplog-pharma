@@ -30,10 +30,10 @@ function Navbar() {
     return (
       <Link
         href={href}
-        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+        className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
           active
-            ? 'bg-gray-200 text-gray-900'
-            : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+            ? 'bg-gray-400 text-white'
+            : 'text-gray-700 hover:bg-gray-400 hover:text-white'
         }`}
       >
         {label}
@@ -42,44 +42,49 @@ function Navbar() {
   }
 
   return (
-    <nav className="flex-shrink-0 border-b border-gray-200 shadow-sm" style={{ backgroundColor: '#F1F5F9', height: '64px' }}>
-      <div className="h-full max-w-screen-xl mx-auto px-4 flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center gap-6">
-          <Image
-            src="/logo.png"
-            alt="Shiplog Pharma"
-            width={108}
-            height={36}
-            style={{ objectFit: 'contain', mixBlendMode: 'multiply' }}
-            priority
-          />
-
-          {/* Nav links */}
-          <div className="flex items-center gap-1">
-            {navLink('/cotacao', 'Cotação')}
-            {navLink('/historico', 'Histórico')}
-            {navLink('/admin/entrada', 'Setup')}
-            {navLink('/admin/produtos', 'Produtos')}
+    <header className="flex-shrink-0 shadow-md">
+      {/* ── Barra superior: logo + título + user ── */}
+      <div style={{ backgroundColor: '#F1F5F9', borderBottom: '1px solid #E2E8F0' }}>
+        <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Image
+              src="/logo.png"
+              alt="Shiplog Pharma"
+              width={80}
+              height={28}
+              style={{ objectFit: 'contain', mixBlendMode: 'multiply' }}
+              priority
+            />
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#374151', letterSpacing: '0.02em' }}>
+              SHIPLOG PHARMA &nbsp;·&nbsp; GERENCIAMENTO DE VENDAS
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            {userEmail && (
+              <span className="text-gray-500 text-xs hidden sm:block truncate max-w-[200px]">
+                {userEmail}
+              </span>
+            )}
+            <button
+              onClick={handleSignOut}
+              className="text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Sair
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* User area */}
-        <div className="flex items-center gap-3">
-          {userEmail && (
-            <span className="text-gray-500 text-xs hidden sm:block truncate max-w-[180px]">
-              {userEmail}
-            </span>
-          )}
-          <button
-            onClick={handleSignOut}
-            className="text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1 rounded-md hover:bg-gray-200 transition-colors"
-          >
-            Sair
-          </button>
+      {/* ── Barra inferior: menu ── */}
+      <div style={{ backgroundColor: '#CBD5E1' }}>
+        <div className="max-w-screen-xl mx-auto px-4 h-10 flex items-center gap-1">
+          {navLink('/cotacao', 'Cotação')}
+          {navLink('/historico', 'Histórico')}
+          {navLink('/admin/entrada', 'Setup')}
+          {navLink('/admin/produtos', 'Produtos')}
         </div>
       </div>
-    </nav>
+    </header>
   )
 }
 
