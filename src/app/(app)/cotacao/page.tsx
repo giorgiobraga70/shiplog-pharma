@@ -69,6 +69,8 @@ function mapDbProductToProduct(row: any): Product {
     weightGrossKg: Number(row.weight_gross_kg),
     volumeBoxM3: Number(row.volume_box_m3),
     fobUsd: Number(row.fob_usd),
+    volumeMl: row.volume_ml != null ? Number(row.volume_ml) : null,
+    tamanho: row.pkg_desc_pt ?? null,
     taxRates: {
       ii: Number(row.tax_ii ?? 0),
       ipi: Number(row.tax_ipi ?? 0),
@@ -85,6 +87,28 @@ function mapDbProductToProduct(row: any): Product {
     },
   }
 }
+
+// ─── Helpers de formatação de campos ──────────────────────────────────────────
+
+function formatCnpj(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 14)
+  if (d.length <= 2) return d
+  if (d.length <= 5) return `${d.slice(0,2)}.${d.slice(2)}`
+  if (d.length <= 8) return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5)}`
+  if (d.length <= 12) return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8)}`
+  return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`
+}
+
+function formatCep(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 8)
+  if (d.length <= 5) return d
+  return `${d.slice(0,5)}-${d.slice(5)}`
+}
+
+const ESTADOS_BR = [
+  'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
+  'PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO',
+]
 
 // ─── Componente principal ──────────────────────────────────────────────────────
 
@@ -103,10 +127,13 @@ export default function CotacaoPage() {
   const [contato, setContato] = useState('')
   const [emailContato, setEmailContato] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [cnpj, setCnpj] = useState('')
   const [endereco, setEndereco] = useState('')
   const [cidade, setCidade] = useState('')
   const [estado, setEstado] = useState('')
   const [cep, setCep] = useState('')
+  const [cidades, setCidades] = useState<string[]>([])
+  const [loadingCep, setLoadingCep] = useState(false)
   const [fornecedor, setFornecedor] = useState('Four Star')
   const [prazoValidade, setPrazoValidade] = useState('30')
 
@@ -201,6 +228,42 @@ export default function CotacaoPage() {
       .finally(() => setLoadingProducts(false))
   }, [])
 
+  async function loadCidades(uf: string) {
+    if (!uf) { setCidades([]); return }
+    try {
+      const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`)
+      const data = await res.json()
+      setCidades(data.map((c: { nome: string }) => c.nome))
+    } catch { setCidades([]) }
+  }
+
+  async function handleCepChange(value: string) {
+    const formatted = formatCep(value)
+    setCep(formatted)
+    const cleaned = value.replace(/\D/g, '')
+    if (cleaned.length === 8) {
+      setLoadingCep(true)
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`)
+        const json = await res.json()
+        if (!json.erro) {
+          if (json.logradouro) setEndereco(json.logradouro)
+          if (json.localidade) setCidade(json.localidade)
+          if (json.uf) {
+            setEstado(json.uf)
+            loadCidades(json.uf)
+          }
+        }
+      } catch { /* silencia */ } finally { setLoadingCep(false) }
+    }
+  }
+
+  async function handleEstadoChange(uf: string) {
+    setEstado(uf)
+    setCidade('')
+    loadCidades(uf)
+  }
+
   function handleAddItem() {
     const qty = parseInt(qtyBoxesInput, 10)
     if (!qty || qty <= 0) return
@@ -233,6 +296,7 @@ export default function CotacaoPage() {
           client_email: emailContato,
           client_contact: contato,
           client_phone: telefone,
+          client_cnpj: cnpj,
           client_address: endereco,
           client_city: cidade,
           client_state: estado,
@@ -311,6 +375,7 @@ export default function CotacaoPage() {
       quoteNumber: quotationNumber,
       date: new Date().toLocaleDateString('pt-BR'),
       clientCompany: empresa,
+      clientCnpj: cnpj,
       clientEmail: emailContato,
       clientContact: contato,
       clientPhone: telefone,
@@ -318,7 +383,6 @@ export default function CotacaoPage() {
       clientCity: cidade,
       clientState: estado,
       clientCep: cep,
-      fornecedor: fornecedor,
       usdBrl: DEFAULT_PARAMS.usdBrl,
       paymentTerms: pagamento,
       deliveryDays: parseInt(prazo) || 90,
@@ -326,6 +390,9 @@ export default function CotacaoPage() {
       items: lineItems.map((item) => ({
         description: item.product.description,
         partNumber: item.product.partNumber,
+        ncmCode: item.product.ncmCode,
+        volumeMl: item.product.volumeMl ?? null,
+        tamanho: item.product.tamanho ?? null,
         pcsPerBox: item.product.pcsPerBox,
         qtyBoxes: item.qtyBoxes,
         qtyUnits: item.breakdown.qtyUnits,
@@ -333,7 +400,13 @@ export default function CotacaoPage() {
         weightKg: item.breakdown.weightKg,
         finalPriceUnit: item.breakdown.finalPriceUnit,
         finalPriceBox: item.breakdown.finalPriceBox,
+        finalPriceUnitSIpi: item.breakdown.finalPriceUnitSIpi,
+        finalPriceBoxSIpi: item.breakdown.finalPriceBoxSIpi,
+        finalPriceUnitSImp: item.breakdown.finalPriceUnitSImp,
+        finalPriceBoxSImp: item.breakdown.finalPriceBoxSImp,
         totalBrl: item.breakdown.totalBrl,
+        totalSIpiBrl: item.breakdown.totalSIpiBrl,
+        totalSImpBrl: item.breakdown.totalSImpBrl,
       })),
       totals: {
         boxes: lineItems.reduce((a, i) => a + i.qtyBoxes, 0),
@@ -341,6 +414,8 @@ export default function CotacaoPage() {
         volumeM3: lineItems.reduce((a, i) => a + i.breakdown.volumeM3, 0),
         weightKg: lineItems.reduce((a, i) => a + i.breakdown.weightKg, 0),
         grandTotalBrl: lineItems.reduce((a, i) => a + i.breakdown.totalBrl, 0),
+        grandTotalSIpiBrl: lineItems.reduce((a, i) => a + i.breakdown.totalSIpiBrl, 0),
+        grandTotalSImpBrl: lineItems.reduce((a, i) => a + i.breakdown.totalSImpBrl, 0),
       },
     }
     localStorage.setItem('quotation_print_data', JSON.stringify(printData))
@@ -400,26 +475,32 @@ export default function CotacaoPage() {
               placeholder="Nome da empresa" className={inputClass} />
           </div>
         </div>
-        {/* Linha 2: Contato (40%), E-mail (40%), Telefone (20%) */}
-        <div className="grid grid-cols-5 gap-4 mb-4">
-          <div className="col-span-2">
+        {/* Linha 2: Contato (30%), E-mail (30%), Telefone (20%), CNPJ (20%) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '30% 30% 20% 20%', gap: '16px' }} className="mb-4">
+          <div>
             <label className={labelClass}>Contato</label>
             <input type="text" value={contato} onChange={(e) => setContato(e.target.value)}
               placeholder="Nome do contato" className={inputClass} />
           </div>
-          <div className="col-span-2">
+          <div>
             <label className={labelClass}>E-mail</label>
             <input type="email" value={emailContato} onChange={(e) => setEmailContato(e.target.value)}
               placeholder="contato@empresa.com" className={inputClass} />
           </div>
-          <div className="col-span-1">
+          <div>
             <label className={labelClass}>Telefone</label>
             <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)}
-              placeholder="+55 (11) 99999-9999" className={inputClass} />
+              placeholder="(11) 99999-9999" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>CNPJ</label>
+            <input type="text" value={cnpj}
+              onChange={(e) => setCnpj(formatCnpj(e.target.value))}
+              placeholder="00.000.000/0001-00" className={inputClass} />
           </div>
         </div>
-        {/* Linha 3: Endereço (50%), Cidade (35%), Estado (5%), CEP (10%) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '50% 35% 5% 10%', gap: '16px' }} className="mb-4">
+        {/* Linha 3: Endereço (50%), Cidade (30%), Estado (5%), CEP (10%) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '50% 30% 5% 10%', gap: '16px' }} className="mb-4">
           <div>
             <label className={labelClass}>Endereço</label>
             <input type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)}
@@ -427,17 +508,29 @@ export default function CotacaoPage() {
           </div>
           <div>
             <label className={labelClass}>Cidade</label>
-            <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)}
-              placeholder="Cidade" className={inputClass} />
+            {cidades.length > 0 ? (
+              <select value={cidade} onChange={(e) => setCidade(e.target.value)} className={inputClass}>
+                <option value="">Selecione...</option>
+                {cidades.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            ) : (
+              <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)}
+                placeholder="Cidade" className={inputClass} />
+            )}
           </div>
           <div>
-            <label className={labelClass}>Estado</label>
-            <input type="text" value={estado} onChange={(e) => setEstado(e.target.value)}
-              placeholder="SP" maxLength={2} className={inputClass} />
+            <label className={labelClass}>UF</label>
+            <select value={estado} onChange={(e) => handleEstadoChange(e.target.value)} className={inputClass}>
+              <option value="">—</option>
+              {ESTADOS_BR.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+            </select>
           </div>
           <div>
-            <label className={labelClass}>CEP</label>
-            <input type="text" value={cep} onChange={(e) => setCep(e.target.value)}
+            <label className={labelClass}>
+              CEP{loadingCep && <span className="text-blue-500 ml-1">…</span>}
+            </label>
+            <input type="text" value={cep}
+              onChange={(e) => handleCepChange(e.target.value)}
               placeholder="00000-000" className={inputClass} />
           </div>
         </div>

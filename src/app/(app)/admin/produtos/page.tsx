@@ -138,28 +138,19 @@ export default function AdminProdutosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importLoading, setImportLoading] = useState(false)
 
-  // ── Carrega produtos do Supabase ─────────────────────────────────────────────
+  // ── Carrega produtos via API (usa service key, evita RLS) ────────────────────
   useEffect(() => {
-    async function loadProducts() {
-      setLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('seq_no', { ascending: true })
-
-        if (error || !data || data.length === 0) {
-          setProducts(MOCK_PRODUCTS)
-        } else {
+    fetch('/api/products')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
           setProducts(data as DbProduct[])
+        } else {
+          setProducts(MOCK_PRODUCTS)
         }
-      } catch {
-        setProducts(MOCK_PRODUCTS)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadProducts()
+      })
+      .catch(() => setProducts(MOCK_PRODUCTS))
+      .finally(() => setLoading(false))
   }, [])
 
   // ── Filtros ──────────────────────────────────────────────────────────────────
@@ -311,6 +302,7 @@ export default function AdminProdutosPage() {
         if (!partNumber) continue // pular linhas sem part number
 
         const productType = String(r[3] || '').trim() // col 3 = Produto (Frasco, Ampola, etc)
+        const tamanho = String(r[9] || '').trim() || null  // col J = Tamanho ex: "Ø14,5 x 35 mm"
         const volumeMl = Number(r[6]) > 0 ? Number(r[6]) : null
         const weightGrossKg = Number(r[18]) || 0
         const pcsTray = Number(r[19]) || null
@@ -330,6 +322,7 @@ export default function AdminProdutosPage() {
           description,
           part_number: partNumber,
           product_type: productType,
+          pkg_desc_pt: tamanho,
           volume_ml: volumeMl,
           weight_gross_kg: weightGrossKg,
           pcs_per_tray: pcsTray,
@@ -359,9 +352,12 @@ export default function AdminProdutosPage() {
 
       alert(`✅ ${result.imported} produtos importados com sucesso!`)
 
-      // Recarregar lista
-      const { data, error } = await supabase.from('products').select('*').order('seq_no')
-      if (!error && data && data.length > 0) setProducts(data as DbProduct[])
+      // Recarregar via API
+      const reload = await fetch('/api/products')
+      const reloadData = await reload.json()
+      if (Array.isArray(reloadData) && reloadData.length > 0) {
+        setProducts(reloadData as DbProduct[])
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido'
       console.error('Erro ao importar Excel:', err)

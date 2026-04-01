@@ -62,6 +62,8 @@ export interface Product {
   weightGrossKg: number
   volumeBoxM3: number
   fobUsd: number   // preço FOB por unidade em USD
+  volumeMl?: number | null   // volume do produto em ml
+  tamanho?: string | null    // dimensões ex: "Ø14,5 x 35 mm"
 }
 
 export interface QuotationItem {
@@ -110,6 +112,16 @@ export interface PricingBreakdown {
   finalPriceBox: number
   finalPriceUnit: number
   totalBrl: number
+
+  // Preço S/IPI (com PIS/COFINS/ICMS, sem IPI)
+  finalPriceBoxSIpi: number
+  finalPriceUnitSIpi: number
+  totalSIpiBrl: number
+
+  // Preço S/Imp (sem nenhum imposto)
+  finalPriceBoxSImp: number
+  finalPriceUnitSImp: number
+  totalSImpBrl: number
 }
 
 export interface QuotationResult {
@@ -191,6 +203,21 @@ export function calcItemPrice(
   const finalPriceUnit = finalPriceBox / pcsPerBox
   const totalBrl      = finalPriceBox * qtyBoxes
 
+  // ── Preço S/IPI (com PIS/COFINS/ICMS, sem IPI) ───────────────────────────
+  const icmsBaseSIpi     = cifBrlBox + iiValue + pisValue + cofinsValue
+  const icmsValueSIpi    = icmsBaseSIpi * taxRates.icms / (1 - taxRates.icms)
+  const totalTaxesSIpi   = iiValue + pisValue + cofinsValue + icmsValueSIpi
+  const basePriceBoxSIpi = cifBrlBox + totalTaxesSIpi + customsPerBox
+  const finalPriceBoxSIpi  = basePriceBoxSIpi / (1 - markupRate)
+  const finalPriceUnitSIpi = finalPriceBoxSIpi / pcsPerBox
+  const totalSIpiBrl       = finalPriceBoxSIpi * qtyBoxes
+
+  // ── Preço S/Imp (sem nenhum imposto) ─────────────────────────────────────
+  const basePriceBoxSImp  = cifBrlBox + customsPerBox
+  const finalPriceBoxSImp  = basePriceBoxSImp / (1 - markupRate)
+  const finalPriceUnitSImp = finalPriceBoxSImp / pcsPerBox
+  const totalSImpBrl       = finalPriceBoxSImp * qtyBoxes
+
   return {
     productId: product.id, description: product.description,
     partNumber: product.partNumber, qtyBoxes, qtyUnits, volumeM3, weightKg,
@@ -198,6 +225,8 @@ export function calcItemPrice(
     iiValue, ipiValue, pisValue, cofinsValue, icmsValue, totalTaxesBrl,
     customsPerBox, basePriceBox, basePriceUnit, markupRate,
     finalPriceBox, finalPriceUnit, totalBrl,
+    finalPriceBoxSIpi, finalPriceUnitSIpi, totalSIpiBrl,
+    finalPriceBoxSImp, finalPriceUnitSImp, totalSImpBrl,
   }
 }
 

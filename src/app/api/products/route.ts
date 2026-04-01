@@ -6,8 +6,8 @@ export async function GET() {
     const { data, error } = await supabaseServer
       .from('products')
       .select('*')
-      .order('description')
-      .range(0, 199)
+      .order('seq_no', { ascending: true })
+      .range(0, 299)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(data)

@@ -6,6 +6,7 @@ interface PrintData {
   quoteNumber: string
   date: string
   clientCompany: string
+  clientCnpj?: string
   clientEmail: string
   clientContact: string
   clientPhone?: string
@@ -13,7 +14,6 @@ interface PrintData {
   clientCity?: string
   clientState?: string
   clientCep?: string
-  fornecedor?: string
   usdBrl: number
   paymentTerms: string
   deliveryDays: number
@@ -21,6 +21,9 @@ interface PrintData {
   items: Array<{
     description: string
     partNumber: string
+    ncmCode: string
+    volumeMl: number | null
+    tamanho: string | null
     pcsPerBox: number
     qtyBoxes: number
     qtyUnits: number
@@ -28,7 +31,13 @@ interface PrintData {
     weightKg: number
     finalPriceUnit: number
     finalPriceBox: number
+    finalPriceUnitSIpi: number
+    finalPriceBoxSIpi: number
+    finalPriceUnitSImp: number
+    finalPriceBoxSImp: number
     totalBrl: number
+    totalSIpiBrl: number
+    totalSImpBrl: number
   }>
   totals: {
     boxes: number
@@ -36,6 +45,8 @@ interface PrintData {
     volumeM3: number
     weightKg: number
     grandTotalBrl: number
+    grandTotalSIpiBrl: number
+    grandTotalSImpBrl: number
   }
 }
 
@@ -88,7 +99,7 @@ ${innerHtml}
         throw new Error(errData?.error || 'Erro ao enviar e-mail')
       }
       setEmailStatus('success')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
       setEmailStatus('error')
     } finally {
@@ -99,10 +110,7 @@ ${innerHtml}
   useEffect(() => {
     try {
       const raw = localStorage.getItem('quotation_print_data')
-      if (!raw) {
-        setError(true)
-        return
-      }
+      if (!raw) { setError(true); return }
       const parsed: PrintData = JSON.parse(raw)
       setData(parsed)
     } catch {
@@ -112,9 +120,7 @@ ${innerHtml}
 
   useEffect(() => {
     if (!data) return
-    const timer = setTimeout(() => {
-      window.print()
-    }, 800)
+    const timer = setTimeout(() => { window.print() }, 800)
     return () => clearTimeout(timer)
   }, [data])
 
@@ -125,11 +131,9 @@ ${innerHtml}
           <p className="text-gray-600 text-base">
             Nenhum dado de cotação encontrado. Volte para a cotação e clique em Gerar PDF.
           </p>
-          <button
-            onClick={() => window.close()}
+          <button onClick={() => window.close()}
             className="mt-4 px-4 py-2 rounded-lg text-white text-sm font-semibold"
-            style={{ backgroundColor: '#0C3460' }}
-          >
+            style={{ backgroundColor: '#0C3460' }}>
             Fechar
           </button>
         </div>
@@ -145,223 +149,196 @@ ${innerHtml}
     )
   }
 
+  // Endereço completo
+  const enderecoCompleto = [
+    data.clientAddress,
+    data.clientCity,
+    data.clientState,
+    data.clientCep ? `CEP ${data.clientCep}` : null,
+  ].filter(Boolean).join(', ')
+
   return (
     <>
       {/* CSS de impressão */}
       <style media="print">{`
-        @page { size: A4 landscape; margin: 10mm; }
+        @page { size: A4 landscape; margin: 8mm; }
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .no-print { display: none !important; }
       `}</style>
 
-      <div
-        className="bg-white min-h-screen"
-        style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#1a1a1a' }}
-      >
-        {/* Botões de ação — ocultos na impressão */}
-        <div
-          className="no-print flex items-center gap-3 px-6 py-3 border-b border-gray-200 bg-gray-50"
-          style={{ position: 'sticky', top: 0, zIndex: 10 }}
-        >
-          <button
-            onClick={() => window.print()}
+      <div className="bg-white min-h-screen"
+        style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#1a1a1a' }}>
+
+        {/* Botões — ocultos na impressão */}
+        <div className="no-print flex items-center gap-3 px-6 py-3 border-b border-gray-200 bg-gray-50"
+          style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+          <button onClick={() => window.print()}
             className="px-4 py-2 rounded-lg text-white text-sm font-semibold hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: '#0C3460' }}
-          >
+            style={{ backgroundColor: '#0C3460' }}>
             Imprimir / Salvar PDF
           </button>
-          <button
-            onClick={() => window.close()}
+          <button onClick={() => window.close()}
             className="px-4 py-2 rounded-lg text-sm font-semibold border-2 hover:bg-gray-100 transition-colors"
-            style={{ borderColor: '#0C3460', color: '#0C3460' }}
-          >
+            style={{ borderColor: '#0C3460', color: '#0C3460' }}>
             Voltar
           </button>
-          <button
-            onClick={handleSendEmail}
-            disabled={isSending}
-            className="no-print bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-          >
+          <button onClick={handleSendEmail} disabled={isSending}
+            className="no-print bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50">
             {isSending ? 'Enviando...' : '📧 Enviar por E-mail'}
           </button>
-          {emailStatus === 'success' && (
-            <span className="text-sm font-medium text-green-700">E-mail enviado com sucesso!</span>
-          )}
-          {emailStatus === 'error' && (
-            <span className="text-sm font-medium text-red-600">Erro ao enviar e-mail.</span>
-          )}
+          {emailStatus === 'success' && <span className="text-sm font-medium text-green-700">E-mail enviado com sucesso!</span>}
+          {emailStatus === 'error' && <span className="text-sm font-medium text-red-600">Erro ao enviar e-mail.</span>}
         </div>
 
-        {/* Conteúdo do documento */}
-        <div id="quote-content" style={{ padding: '16px 20px', maxWidth: '100%' }}>
+        {/* Conteúdo */}
+        <div id="quote-content" style={{ padding: '14px 18px', maxWidth: '100%' }}>
 
-          {/* ── Header ───────────────────────────────────────────────── */}
+          {/* ── Header ──────────────────────────────────────────────────── */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-            {/* Esquerda: logo */}
             <div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo.png"
-                alt="Shiplog Pharma"
-                style={{ height: '60px', objectFit: 'contain', display: 'block' }}
-              />
-              <div style={{ fontSize: '10px', color: '#64748B', marginTop: '4px' }}>
+              <img src="/logo.png" alt="Shiplog Pharma"
+                style={{ height: '55px', objectFit: 'contain', display: 'block' }} />
+              <div style={{ fontSize: '9px', color: '#64748B', marginTop: '3px' }}>
                 Frascos e Ampolas farmacêuticos
               </div>
             </div>
-
-            {/* Direita: título + número */}
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '22px', fontWeight: 700, color: '#0C3460', letterSpacing: '1px' }}>
-                COTAÇÃO
-              </div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155', marginTop: '2px', fontFamily: 'monospace' }}>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#0C3460', letterSpacing: '1px' }}>COTAÇÃO</div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#334155', marginTop: '2px', fontFamily: 'monospace' }}>
                 N° {data.quoteNumber}
               </div>
             </div>
           </div>
 
-          {/* Linha divisória azul */}
-          <div style={{ height: '2px', backgroundColor: '#0C3460', marginBottom: '8px' }} />
+          {/* Linha azul */}
+          <div style={{ height: '2px', backgroundColor: '#0C3460', marginBottom: '7px' }} />
 
-          {/* ── Dados do cliente ─────────────────────────────────────── */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '2px 24px',
-              fontSize: '11px',
-              marginBottom: '10px',
-              padding: '6px 8px',
-              backgroundColor: '#F9FAFB',
-              borderRadius: '4px',
-              border: '1px solid #E2E8F0',
-            }}
-          >
+          {/* ── Dados do cliente ────────────────────────────────────────── */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr',
+            gap: '2px 20px', fontSize: '10px', marginBottom: '8px',
+            padding: '5px 8px', backgroundColor: '#F9FAFB',
+            borderRadius: '4px', border: '1px solid #E2E8F0',
+          }}>
             <div><span style={{ color: '#64748B' }}>Empresa: </span><strong>{data.clientCompany || '—'}</strong></div>
             <div><span style={{ color: '#64748B' }}>Cotação N°: </span><strong style={{ fontFamily: 'monospace' }}>{data.quoteNumber}</strong></div>
-            <div><span style={{ color: '#64748B' }}>Contato: </span>{data.clientContact || '—'}</div>
+            <div><span style={{ color: '#64748B' }}>CNPJ: </span>{data.clientCnpj || '—'}</div>
             <div><span style={{ color: '#64748B' }}>Data: </span>{data.date}</div>
-            <div><span style={{ color: '#64748B' }}>E-mail: </span>{data.clientEmail || '—'}</div>
+            <div><span style={{ color: '#64748B' }}>Contato: </span>{data.clientContact || '—'}</div>
             <div><span style={{ color: '#64748B' }}>Telefone: </span>{data.clientPhone || '—'}</div>
-            {data.clientAddress && <div><span style={{ color: '#64748B' }}>Endereço: </span>{data.clientAddress}{data.clientCity ? `, ${data.clientCity}` : ''}{data.clientState ? ` - ${data.clientState}` : ''}{data.clientCep ? ` CEP ${data.clientCep}` : ''}</div>}
-            <div><span style={{ color: '#64748B' }}>Fornecedor: </span>{data.fornecedor || '—'}</div>
+            <div><span style={{ color: '#64748B' }}>E-mail: </span>{data.clientEmail || '—'}</div>
+            {enderecoCompleto && (
+              <div><span style={{ color: '#64748B' }}>Endereço: </span>{enderecoCompleto}</div>
+            )}
             <div><span style={{ color: '#64748B' }}>Cond. Pagamento: </span>{data.paymentTerms || '—'}</div>
             <div><span style={{ color: '#64748B' }}>Prazo de Entrega: </span>{data.deliveryDays ? `${data.deliveryDays} dias` : '—'}</div>
             <div><span style={{ color: '#64748B' }}>Validade: </span>{data.validityDays ? `${data.validityDays} dias` : '—'}</div>
           </div>
 
-          {/* ── Tabela de itens ──────────────────────────────────────── */}
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: '11px',
-              marginBottom: '0',
-            }}
-          >
+          {/* ── Tabela de itens ─────────────────────────────────────────── */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: '0' }}>
             <thead>
               <tr style={{ backgroundColor: '#0C3460', color: '#fff' }}>
-                <th style={thStyle('left', '28px')}>N°</th>
-                <th style={thStyle('left')}>Descritivo</th>
-                <th style={thStyle('left', '70px')}>P/N</th>
-                <th style={thStyle('center', '72px')}>Embalagem</th>
-                <th style={thStyle('right', '68px')}>Qtd Caixas</th>
-                <th style={thStyle('right', '72px')}>Qtd Unidades</th>
-                <th style={thStyle('right', '68px')}>Volume m³</th>
-                <th style={thStyle('right', '62px')}>Peso kg</th>
-                <th style={thStyle('right', '72px')}>Unit BRL</th>
-                <th style={thStyle('right', '72px')}>Cx BRL</th>
-                <th style={thStyle('right', '82px')}>Total BRL</th>
+                <th style={thStyle('center', '22px')}>N°</th>
+                <th style={thStyle('left')}>Descrição</th>
+                <th style={thStyle('left', '70px')}>Part Number</th>
+                <th style={thStyle('center', '72px')}>NCM</th>
+                <th style={thStyle('center', '42px')}>Vol.</th>
+                <th style={thStyle('center', '72px')}>Tamanho</th>
+                <th style={thStyle('right', '50px')}>UN/CX</th>
+                <th style={thStyle('right', '68px')}>UN C/Imp.</th>
+                <th style={thStyle('right', '68px')}>CX C/Imp.</th>
+                <th style={thStyle('right', '65px')}>UN S/IPI</th>
+                <th style={thStyle('right', '65px')}>CX S/IPI</th>
+                <th style={thStyle('right', '65px')}>UN S/Imp.</th>
+                <th style={thStyle('right', '65px')}>CX S/Imp.</th>
               </tr>
             </thead>
             <tbody>
               {data.items.map((item, idx) => (
-                <tr
-                  key={idx}
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? '#fff' : '#F8FAFC',
-                    borderBottom: '1px solid #CBD5E1',
-                  }}
-                >
+                <tr key={idx} style={{
+                  backgroundColor: idx % 2 === 0 ? '#fff' : '#F8FAFC',
+                  borderBottom: '1px solid #CBD5E1',
+                }}>
                   <td style={tdStyle('center')}>{idx + 1}</td>
                   <td style={tdStyle('left')}>{item.description}</td>
-                  <td style={{ ...tdStyle('left'), fontFamily: 'monospace', fontSize: '10px' }}>{item.partNumber}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>{item.pcsPerBox.toLocaleString('pt-BR')}pcs/cx</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{item.qtyBoxes}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{item.qtyUnits.toLocaleString('pt-BR')}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{num(item.volumeM3, 3)}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{num(item.weightKg, 1)}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{brl(item.finalPriceUnit)}</td>
+                  <td style={{ ...tdStyle('left'), fontFamily: 'monospace', fontSize: '9px' }}>{item.partNumber}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontSize: '9px' }}>{item.ncmCode || '—'}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
+                    {item.volumeMl != null ? `${item.volumeMl}ml` : '—'}
+                  </td>
+                  <td style={{ ...tdStyle('center'), fontSize: '9px' }}>{item.tamanho || '—'}</td>
+                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>
+                    {item.pcsPerBox.toLocaleString('pt-BR')}
+                  </td>
+                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 600 }}>{brl(item.finalPriceUnit)}</td>
                   <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{brl(item.finalPriceBox)}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 600 }}>{brl(item.totalBrl)}</td>
+                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{brl(item.finalPriceUnitSIpi)}</td>
+                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{brl(item.finalPriceBoxSIpi)}</td>
+                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{brl(item.finalPriceUnitSImp)}</td>
+                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>{brl(item.finalPriceBoxSImp)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr style={{ backgroundColor: '#EFF6FF', borderTop: '2px solid #93C5FD' }}>
                 <td style={tdStyle('center')} />
-                <td style={{ ...tdStyle('left'), fontWeight: 700, color: '#1E3A5F' }}>TOTAL</td>
+                <td style={{ ...tdStyle('left'), fontWeight: 700, color: '#1E3A5F', fontSize: '10px' }}>
+                  TOTAL — {data.totals.boxes} cx / {data.totals.units.toLocaleString('pt-BR')} un
+                </td>
                 <td style={tdStyle('left')} />
                 <td style={tdStyle('center')} />
-                <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700 }}>{data.totals.boxes} cx</td>
-                <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700 }}>{data.totals.units.toLocaleString('pt-BR')} un</td>
-                <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700 }}>{num(data.totals.volumeM3, 3)} m³</td>
-                <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700 }}>{num(data.totals.weightKg, 1)} kg</td>
+                <td style={tdStyle('center')} />
+                <td style={tdStyle('center')} />
                 <td style={tdStyle('right')} />
+                {/* UN C/Imp total */}
                 <td style={tdStyle('right')} />
-                <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700, color: '#0C3460', fontSize: '12px' }}>
+                {/* CX C/Imp: grand total BRL */}
+                <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700, color: '#0C3460' }}>
                   R$ {brl(data.totals.grandTotalBrl)}
+                </td>
+                <td style={tdStyle('right')} />
+                {/* CX S/IPI total */}
+                <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700, color: '#1E40AF' }}>
+                  R$ {brl(data.totals.grandTotalSIpiBrl ?? 0)}
+                </td>
+                <td style={tdStyle('right')} />
+                {/* CX S/Imp total */}
+                <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 700, color: '#065F46' }}>
+                  R$ {brl(data.totals.grandTotalSImpBrl ?? 0)}
                 </td>
               </tr>
             </tfoot>
           </table>
 
           {/* Linha divisória */}
-          <div style={{ height: '1px', backgroundColor: '#CBD5E1', margin: '10px 0' }} />
+          <div style={{ height: '1px', backgroundColor: '#CBD5E1', margin: '8px 0' }} />
 
-          {/* ── Condições comerciais ─────────────────────────────────── */}
-          <div
-            style={{
-              backgroundColor: '#F9FAFB',
-              border: '1px solid #E2E8F0',
-              borderRadius: '4px',
-              padding: '8px 10px',
-              fontSize: '10px',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '3px 24px',
-            }}
-          >
-            <div>
-              <span style={{ color: '#64748B', fontWeight: 600 }}>Condições de Pagamento: </span>
-              {data.paymentTerms}
-            </div>
-            <div>
-              <span style={{ color: '#64748B', fontWeight: 600 }}>Prazo de Entrega: </span>
-              {data.deliveryDays} dias
-            </div>
-            <div>
-              <span style={{ color: '#64748B', fontWeight: 600 }}>Validade da Cotação: </span>
-              {data.validityDays} dias
-            </div>
-            <div>
-              <span style={{ color: '#64748B', fontWeight: 600 }}>Taxa Cambial USD: </span>
-              {num(data.usdBrl, 2)} BRL
-            </div>
+          {/* ── Condições comerciais ────────────────────────────────────── */}
+          <div style={{
+            backgroundColor: '#F9FAFB', border: '1px solid #E2E8F0', borderRadius: '4px',
+            padding: '6px 10px', fontSize: '10px', display: 'grid',
+            gridTemplateColumns: '1fr 1fr', gap: '3px 20px',
+          }}>
+            <div><span style={{ color: '#64748B', fontWeight: 600 }}>Condições de Pagamento: </span>{data.paymentTerms}</div>
+            <div><span style={{ color: '#64748B', fontWeight: 600 }}>Prazo de Entrega: </span>{data.deliveryDays} dias</div>
+            <div><span style={{ color: '#64748B', fontWeight: 600 }}>Validade da Cotação: </span>{data.validityDays} dias</div>
+            <div><span style={{ color: '#64748B', fontWeight: 600 }}>Taxa Cambial USD: </span>{num(data.usdBrl, 2)} BRL</div>
+          </div>
+
+          {/* Legenda dos preços */}
+          <div style={{ marginTop: '6px', fontSize: '8.5px', color: '#64748B', display: 'flex', gap: '16px' }}>
+            <span><strong>C/Imp.</strong> = com todos os impostos (II + IPI + PIS + COFINS + ICMS)</span>
+            <span><strong>S/IPI</strong> = sem IPI (com demais impostos)</span>
+            <span><strong>S/Imp.</strong> = sem impostos</span>
           </div>
 
           {/* Rodapé */}
-          <div
-            style={{
-              marginTop: '12px',
-              paddingTop: '6px',
-              borderTop: '1px solid #E2E8F0',
-              fontSize: '9px',
-              color: '#94A3B8',
-              textAlign: 'center',
-            }}
-          >
+          <div style={{
+            marginTop: '10px', paddingTop: '5px', borderTop: '1px solid #E2E8F0',
+            fontSize: '8px', color: '#94A3B8', textAlign: 'center',
+          }}>
             Este documento é uma proposta comercial e não possui valor fiscal. • Shiplog Pharma — shiplogpharma.com.br
           </div>
         </div>
@@ -374,10 +351,10 @@ ${innerHtml}
 
 function thStyle(align: 'left' | 'right' | 'center', width?: string): React.CSSProperties {
   return {
-    padding: '6px 8px',
+    padding: '5px 6px',
     textAlign: align,
     fontWeight: 600,
-    fontSize: '10px',
+    fontSize: '9px',
     letterSpacing: '0.3px',
     width: width,
     whiteSpace: 'nowrap',
@@ -387,7 +364,7 @@ function thStyle(align: 'left' | 'right' | 'center', width?: string): React.CSSP
 
 function tdStyle(align: 'left' | 'right' | 'center'): React.CSSProperties {
   return {
-    padding: '5px 8px',
+    padding: '4px 6px',
     textAlign: align,
     borderRight: '1px solid #CBD5E1',
     verticalAlign: 'middle',
