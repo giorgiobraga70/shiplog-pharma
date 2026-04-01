@@ -41,16 +41,24 @@ export async function POST(request: Request) {
       status = 'draft',
     } = body
 
-    // destination_port derivado de cidade + estado (mantém compatibilidade com coluna existente)
+    // destination_port derivado de cidade + estado (coluna original mantida)
     const destination_port = client_city
       ? `${client_city}${client_state ? ' - ' + client_state : ''}`
       : null
 
-    const insertPayload: Record<string, unknown> = {
+    // ── Primeiro tenta com todos os campos (incluindo novos) ──────────────────
+    const fullPayload = {
       quote_number,
       client_company,
       client_email,
       client_contact,
+      client_phone:   client_phone   ?? null,
+      client_cnpj:    client_cnpj    ?? null,
+      client_address: client_address ?? null,
+      client_city:    client_city    ?? null,
+      client_state:   client_state   ?? null,
+      client_cep:     client_cep     ?? null,
+      supplier:       supplier       ?? null,
       usd_brl,
       payment_terms,
       delivery_days,
@@ -61,24 +69,41 @@ export async function POST(request: Request) {
       status,
     }
 
-    // Campos novos — inseridos apenas se as colunas existirem no banco.
-    // Se a coluna não existir, o Supabase ignora o campo extra.
-    if (client_phone   !== undefined) insertPayload.client_phone   = client_phone
-    if (client_cnpj    !== undefined) insertPayload.client_cnpj    = client_cnpj
-    if (client_address !== undefined) insertPayload.client_address = client_address
-    if (client_city    !== undefined) insertPayload.client_city    = client_city
-    if (client_state   !== undefined) insertPayload.client_state   = client_state
-    if (client_cep     !== undefined) insertPayload.client_cep     = client_cep
-    if (supplier       !== undefined) insertPayload.supplier       = supplier
-
     const { data, error } = await supabaseServer
       .from('quotations')
-      .insert([insertPayload])
+      .insert([fullPayload])
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(data, { status: 201 })
+    if (!error) return NextResponse.json(data, { status: 201 })
+
+    // ── Se erro por coluna inexistente, tenta apenas com colunas originais ────
+    if (error.message.includes('column') || error.message.includes('does not exist')) {
+      const basePayload = {
+        quote_number,
+        client_company,
+        client_email,
+        client_contact,
+        usd_brl,
+        payment_terms,
+        delivery_days,
+        destination_port,
+        validity_days,
+        items,
+        totals,
+        status,
+      }
+      const { data: data2, error: error2 } = await supabaseServer
+        .from('quotations')
+        .insert([basePayload])
+        .select()
+        .single()
+
+      if (error2) return NextResponse.json({ error: error2.message }, { status: 500 })
+      return NextResponse.json(data2, { status: 201 })
+    }
+
+    return NextResponse.json({ error: error.message }, { status: 500 })
   } catch {
     return NextResponse.json({ error: 'Erro interno ao salvar cotação.' }, { status: 500 })
   }

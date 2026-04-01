@@ -690,16 +690,16 @@ export default function CotacaoPage() {
           <table className="w-full text-xs">
             <thead>
               <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
-                <th className="px-3 py-2.5 text-left font-semibold text-gray-600 w-8">N°</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-gray-600">Descrição</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-gray-600">Part Number</th>
-                <th className="px-3 py-2.5 text-right font-semibold text-gray-600">Caixas</th>
-                <th className="px-3 py-2.5 text-right font-semibold text-gray-600">Unidades</th>
-                <th className="px-3 py-2.5 text-right font-semibold text-gray-600">m³</th>
-                <th className="px-3 py-2.5 text-right font-semibold text-gray-600">Kg</th>
-                <th className="px-3 py-2.5 text-right font-semibold text-gray-600">Unit BRL</th>
-                <th className="px-3 py-2.5 text-right font-semibold text-gray-600">Cx BRL</th>
-                <th className="px-3 py-2.5 text-right font-semibold text-gray-600">Total BRL</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600 w-8">N°</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Descrição</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Part Number</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Caixas</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Unidades</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">m³</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Kg</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Unit BRL</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Cx BRL</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Total BRL</th>
                 <th className="px-3 py-2.5 w-8" />
               </tr>
             </thead>

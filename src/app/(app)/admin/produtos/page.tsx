@@ -138,6 +138,47 @@ export default function AdminProdutosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importLoading, setImportLoading] = useState(false)
 
+  // ── Exportar CSV ─────────────────────────────────────────────────────────────
+  function handleExportar() {
+    const brlFmt = (v: number | null) =>
+      v !== null && !isNaN(v) ? v.toFixed(2).replace('.', ',') : ''
+
+    const header = [
+      'N°', 'Descrição', 'Part Number', 'NCM', 'Vol.(ml)', 'Tamanho', 'UN/CX',
+      'UN Fornec.(USD)', 'UN C/Imp.(BRL)', 'CX C/Imp.(BRL)',
+      'UN S/IPI(BRL)', 'CX S/IPI(BRL)', 'UN S/Imp.(BRL)', 'CX S/Imp.(BRL)', 'Status',
+    ]
+
+    const rows = filtered.map((p) => {
+      const { fobUsdFornec, unitBrl, cxBrl } = calcPrices(p, filterFornecedor)
+      const status = p.fob_usd !== null && p.fob_usd > 0 ? 'Ativo' : 'Sem preço'
+      return [
+        p.seq_no,
+        `"${p.description}"`,
+        p.part_number,
+        p.ncm_code,
+        p.volume_ml ?? '',
+        `"${p.pkg_desc_pt ?? ''}"`,
+        p.pcs_per_box,
+        fobUsdFornec != null ? fobUsdFornec.toFixed(4).replace('.', ',') : '',
+        brlFmt(unitBrl),
+        brlFmt(cxBrl),
+        '', '', '', '',  // S/IPI e S/Imp não calculados na tela de produtos
+        status,
+      ].join(';')
+    })
+
+    const csv = [header.join(';'), ...rows].join('\n')
+    const bom = '\uFEFF' // BOM para Excel abrir UTF-8 corretamente
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `shiplog-produtos-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // ── Carrega produtos via API (usa service key, evita RLS) ────────────────────
   useEffect(() => {
     fetch('/api/products')
@@ -482,7 +523,7 @@ export default function AdminProdutosPage() {
 
           {/* Exportar */}
           <button
-            onClick={() => alert('Em breve')}
+            onClick={handleExportar}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
             style={{ borderColor: '#0C3460', color: '#0C3460' }}
           >
@@ -500,20 +541,20 @@ export default function AdminProdutosPage() {
           <table className="w-full text-xs">
             <thead>
               <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
-                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 60 }}>N°</th>
-                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide" style={{ minWidth: 180 }}>Descrição</th>
-                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide font-mono" style={{ width: 130 }}>Part Number</th>
-                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide font-mono" style={{ width: 100 }}>NCM</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 60 }}>N°</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ minWidth: 180 }}>Descrição</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide font-mono" style={{ width: 130 }}>Part Number</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide font-mono" style={{ width: 100 }}>NCM</th>
                 <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 55 }}>Vol.</th>
                 <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 70 }}>Tamanho</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 70 }}>UN/CX</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>UN Fornec.</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>UN C/Imp.</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>CX C/Imp.</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>UN S/IPI</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>CX S/IPI</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>UN S/Imp.</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>CX S/Imp.</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 70 }}>UN/CX</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>UN Fornec.</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>UN C/Imp.</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>CX C/Imp.</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>UN S/IPI</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>CX S/IPI</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>UN S/Imp.</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>CX S/Imp.</th>
                 <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>Status</th>
                 <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 50 }}></th>
               </tr>
