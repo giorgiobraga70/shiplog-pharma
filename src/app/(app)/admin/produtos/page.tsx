@@ -17,6 +17,8 @@ interface DbProduct {
   weight_gross_kg: number
   volume_box_m3: number
   fob_usd: number | null
+  fob_alt_usd?: number | null
+  pkg_desc_pt?: string | null
   ncm_code: string
   is_active: boolean
 }
@@ -78,10 +80,14 @@ function fmtBrl(v: number | null): string {
   return `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function calcPrices(product: DbProduct): { unitBrl: number | null; cxBrl: number | null } {
-  if (!product.fob_usd || product.fob_usd <= 0) return { unitBrl: null, cxBrl: null }
+function calcPrices(product: DbProduct, fornecedor: string): { fobUsdFornec: number | null; unitBrl: number | null; cxBrl: number | null } {
+  const fobUsd = fornecedor === 'Munan'
+    ? (product.fob_usd ?? null)
+    : (product.fob_alt_usd ?? product.fob_usd ?? null)
+
+  if (!fobUsd || fobUsd <= 0) return { fobUsdFornec: fobUsd, unitBrl: null, cxBrl: null }
   const taxes = NCM_TAXES[product.ncm_code]
-  if (!taxes) return { unitBrl: null, cxBrl: null }
+  if (!taxes) return { fobUsdFornec: fobUsd, unitBrl: null, cxBrl: null }
   try {
     const result = calcItemPrice(
       {
@@ -96,15 +102,15 @@ function calcPrices(product: DbProduct): { unitBrl: number | null; cxBrl: number
           pcsPerBox: product.pcs_per_box,
           weightGrossKg: product.weight_gross_kg,
           volumeBoxM3: product.volume_box_m3,
-          fobUsd: product.fob_usd,
+          fobUsd: fobUsd,
         },
         qtyBoxes: 10,
       },
       DEFAULT_PARAMS
     )
-    return { unitBrl: result.finalPriceUnit, cxBrl: result.finalPriceBox }
+    return { fobUsdFornec: fobUsd, unitBrl: result.finalPriceUnit, cxBrl: result.finalPriceBox }
   } catch {
-    return { unitBrl: null, cxBrl: null }
+    return { fobUsdFornec: fobUsd, unitBrl: null, cxBrl: null }
   }
 }
 
@@ -117,6 +123,7 @@ export default function AdminProdutosPage() {
   const [filterType, setFilterType] = useState('')
   const [filterVolume, setFilterVolume] = useState('')
   const [filterColor, setFilterColor] = useState('')
+  const [filterFornecedor, setFilterFornecedor] = useState('Four Star')
 
   // Paginação
   const PAGE_SIZE = 50
@@ -444,6 +451,16 @@ export default function AdminProdutosPage() {
             <option value="Azul">Azul</option>
           </select>
 
+          {/* Fornecedor */}
+          <select
+            value={filterFornecedor}
+            onChange={(e) => setFilterFornecedor(e.target.value)}
+            className={`${inputClass} min-w-[140px]`}
+          >
+            <option value="Four Star">Four Star</option>
+            <option value="Munan">Munan</option>
+          </select>
+
           {/* Spacer */}
           <div className="flex-1" />
 
@@ -488,22 +505,27 @@ export default function AdminProdutosPage() {
             <thead>
               <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
                 <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 60 }}>N°</th>
-                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide" style={{ minWidth: 200 }}>Descrição</th>
-                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide font-mono" style={{ width: 140 }}>Part Number</th>
-                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 70 }}>Vol.</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 80 }}>Pcs/Cx</th>
-                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide font-mono" style={{ width: 110 }}>NCM</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 100 }}>FOB USD</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 100 }}>Unit BRL</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 100 }}>Cx BRL</th>
-                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>Status</th>
+                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide" style={{ minWidth: 180 }}>Descrição</th>
+                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide font-mono" style={{ width: 130 }}>Part Number</th>
+                <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide font-mono" style={{ width: 100 }}>NCM</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 55 }}>Vol.</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 70 }}>Tamanho</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 70 }}>UN/CX</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>UN Fornec.</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>UN C/Imp.</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 90 }}>CX C/Imp.</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>UN S/IPI</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>CX S/IPI</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>UN S/Imp.</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>CX S/Imp.</th>
+                <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 85 }}>Status</th>
                 <th className="px-3 py-3 text-center font-semibold text-gray-600 uppercase tracking-wide" style={{ width: 50 }}></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-3 py-10 text-center text-gray-400">
+                  <td colSpan={16} className="px-3 py-10 text-center text-gray-400">
                     <div className="flex items-center justify-center gap-2">
                       <svg className="animate-spin w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -515,17 +537,18 @@ export default function AdminProdutosPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-3 py-10 text-center text-gray-400">
+                  <td colSpan={16} className="px-3 py-10 text-center text-gray-400">
                     Nenhum produto encontrado para os filtros aplicados.
                   </td>
                 </tr>
               ) : (
                 paginated.map((product, idx) => {
-                  const { unitBrl, cxBrl } = calcPrices(product)
+                  const { fobUsdFornec, unitBrl, cxBrl } = calcPrices(product, filterFornecedor)
                   const isEditing = editingId === product.id
                   const isSaving  = savingId === product.id
                   const hasPrice  = product.fob_usd !== null && product.fob_usd > 0
                   const rowBg     = idx % 2 === 0 ? '#FFFFFF' : '#F9FAFB'
+                  const tamanho   = product.pkg_desc_pt ?? '—'
 
                   return (
                     <tr
@@ -544,20 +567,25 @@ export default function AdminProdutosPage() {
                       {/* Part Number */}
                       <td className="px-3 py-2.5 text-gray-500 font-mono text-xs">{product.part_number}</td>
 
-                      {/* Volume */}
+                      {/* NCM */}
+                      <td className="px-3 py-2.5 font-mono text-gray-500 text-xs">{product.ncm_code}</td>
+
+                      {/* Vol. */}
                       <td className="px-3 py-2.5 text-center text-gray-600">
                         {product.volume_ml !== null ? `${product.volume_ml}ml` : '—'}
                       </td>
 
-                      {/* Pcs/Cx */}
+                      {/* Tamanho */}
+                      <td className="px-3 py-2.5 text-center text-gray-600 text-xs">
+                        {tamanho}
+                      </td>
+
+                      {/* UN/CX */}
                       <td className="px-3 py-2.5 text-right font-mono text-gray-700">
                         {product.pcs_per_box.toLocaleString('pt-BR')}
                       </td>
 
-                      {/* NCM */}
-                      <td className="px-3 py-2.5 font-mono text-gray-500 text-xs">{product.ncm_code}</td>
-
-                      {/* FOB USD — editável inline */}
+                      {/* UN Fornec. — editável inline (FOB do fornecedor selecionado) */}
                       <td className="px-3 py-2.5 text-right font-mono">
                         {isEditing ? (
                           <input
@@ -574,25 +602,37 @@ export default function AdminProdutosPage() {
                             className="w-24 px-2 py-1 text-xs rounded border border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 font-mono text-right"
                           />
                         ) : (
-                          <span className={hasPrice ? 'text-gray-800' : 'text-gray-400'}>
-                            {fmtFob(product.fob_usd)}
+                          <span className={fobUsdFornec ? 'text-gray-800' : 'text-gray-400'}>
+                            {fmtFob(fobUsdFornec ?? null)}
                           </span>
                         )}
                       </td>
 
-                      {/* Unit BRL */}
+                      {/* UN C/Imp. */}
                       <td className="px-3 py-2.5 text-right font-mono">
                         <span className={unitBrl !== null ? 'text-green-700' : 'text-gray-400'}>
                           {fmtBrl(unitBrl)}
                         </span>
                       </td>
 
-                      {/* Cx BRL */}
+                      {/* CX C/Imp. */}
                       <td className="px-3 py-2.5 text-right font-mono">
                         <span className={cxBrl !== null ? 'text-gray-800' : 'text-gray-400'}>
                           {fmtBrl(cxBrl)}
                         </span>
                       </td>
+
+                      {/* UN S/IPI */}
+                      <td className="px-3 py-2.5 text-right font-mono text-gray-400 text-xs">—</td>
+
+                      {/* CX S/IPI */}
+                      <td className="px-3 py-2.5 text-right font-mono text-gray-400 text-xs">—</td>
+
+                      {/* UN S/Imp. */}
+                      <td className="px-3 py-2.5 text-right font-mono text-gray-400 text-xs">—</td>
+
+                      {/* CX S/Imp. */}
+                      <td className="px-3 py-2.5 text-right font-mono text-gray-400 text-xs">—</td>
 
                       {/* Status */}
                       <td className="px-3 py-2.5 text-center">

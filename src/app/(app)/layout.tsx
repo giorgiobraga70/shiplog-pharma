@@ -45,7 +45,7 @@ function Navbar() {
     <header className="flex-shrink-0 shadow-md">
       {/* ── Barra superior: logo + título + user ── */}
       <div style={{ backgroundColor: '#F1F5F9', borderBottom: '1px solid #E2E8F0' }}>
-        <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-screen-xl mx-auto px-4 h-20 flex items-center justify-between" style={{ position: 'relative' }}>
           <div className="flex items-center gap-4">
             <Image
               src="/logo.png"
@@ -55,10 +55,20 @@ function Navbar() {
               style={{ objectFit: 'contain', mixBlendMode: 'multiply' }}
               priority
             />
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#374151', letterSpacing: '0.02em' }}>
-              SHIPLOG PHARMA &nbsp;·&nbsp; GERENCIAMENTO DE VENDAS
-            </span>
           </div>
+          <span style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontSize: '18px',
+            fontWeight: 700,
+            fontStyle: 'italic',
+            color: '#374151',
+            letterSpacing: '0.02em',
+            whiteSpace: 'nowrap',
+          }}>
+            SHIPLOG PHARMA &nbsp;·&nbsp; GERENCIAMENTO DE VENDAS
+          </span>
           <div className="flex items-center gap-3">
             {userEmail && (
               <span className="text-gray-500 text-xs hidden sm:block truncate max-w-[200px]">
