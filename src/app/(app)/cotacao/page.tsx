@@ -458,7 +458,7 @@ export default function CotacaoPage() {
           Dados da Cotação
         </h2>
         {/* Linha 1: Número (25%), Data (25%), Empresa (50%) */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '16px' }} className="mb-4">
           <div>
             <label className={labelClass}>Número</label>
             <input type="text" readOnly value={quotationNumber}
@@ -469,14 +469,14 @@ export default function CotacaoPage() {
             <input type="text" readOnly value={formatDateBR(today)}
               className={`${inputClass} bg-gray-50 text-gray-500 cursor-not-allowed`} />
           </div>
-          <div className="col-span-2">
+          <div>
             <label className={labelClass}>Empresa</label>
             <input type="text" value={empresa} onChange={(e) => setEmpresa(e.target.value)}
               placeholder="Nome da empresa" className={inputClass} />
           </div>
         </div>
         {/* Linha 2: Contato (30%), E-mail (30%), Telefone (20%), CNPJ (20%) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '30% 30% 20% 20%', gap: '16px' }} className="mb-4">
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 3fr 2fr 2fr', gap: '16px' }} className="mb-4">
           <div>
             <label className={labelClass}>Contato</label>
             <input type="text" value={contato} onChange={(e) => setContato(e.target.value)}
@@ -500,7 +500,7 @@ export default function CotacaoPage() {
           </div>
         </div>
         {/* Linha 3: Endereço (50%), Cidade (30%), Estado (5%), CEP (10%) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '50% 30% 5% 10%', gap: '16px' }} className="mb-4">
+        <div style={{ display: 'grid', gridTemplateColumns: '10fr 6fr 1fr 2fr', gap: '16px' }} className="mb-4">
           <div>
             <label className={labelClass}>Endereço</label>
             <input type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)}
@@ -535,13 +535,13 @@ export default function CotacaoPage() {
           </div>
         </div>
         {/* Linha 4: Condições de Pagamento (40%), Prazo Entrega (20%), Prazo Validade (20%), Fornecedor (20%) */}
-        <div className="grid grid-cols-5 gap-4">
-          <div className="col-span-2">
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '16px' }}>
+          <div>
             <label className={labelClass}>Condições de pagamento</label>
             <input type="text" value={pagamento} onChange={(e) => setPagamento(e.target.value)}
               className={inputClass} />
           </div>
-          <div className="col-span-1">
+          <div>
             <label className={labelClass}>Prazo de entrega</label>
             <select value={prazo} onChange={(e) => setPrazo(e.target.value)} className={inputClass}>
               <option value="15">15 dias</option>
@@ -552,14 +552,14 @@ export default function CotacaoPage() {
               <option value="90">90 dias</option>
             </select>
           </div>
-          <div className="col-span-1">
+          <div>
             <label className={labelClass}>Prazo de Validade</label>
             <select value={prazoValidade} onChange={(e) => setPrazoValidade(e.target.value)} className={inputClass}>
               <option value="30">30 dias</option>
               <option value="60">60 dias</option>
             </select>
           </div>
-          <div className="col-span-1">
+          <div>
             <label className={labelClass}>Fornecedor</label>
             <select value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} className={inputClass}>
               <option value="Four Star">Four Star</option>
