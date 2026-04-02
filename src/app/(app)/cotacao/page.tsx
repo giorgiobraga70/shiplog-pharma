@@ -171,7 +171,7 @@ export default function CotacaoPage() {
   const [prazo, setPrazo] = useState('90')
 
   // Produtos do banco
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<ExtProduct[]>([])
   const [loadingProducts, setLoadingProducts] = useState(true)
 
   // Produtos selecionados
