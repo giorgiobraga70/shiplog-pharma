@@ -175,6 +175,7 @@ export default function HistoricoPage() {
   const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
+  interface StatusBucket { count: number; brl: number }
   interface PeriodStats {
     key: string
     label: string
@@ -182,14 +183,18 @@ export default function HistoricoPage() {
     year: number
     month?: number
     total: number
-    clients: number
-    funnel: number
-    sent: number
-    approved: number
+    saved:    StatusBucket   // draft
+    sent:     StatusBucket   // sent
+    approved: StatusBucket   // approved
+    lost:     StatusBucket   // lost
+  }
+
+  function bucket(qs: Quotation[], status: QuotationStatus): StatusBucket {
+    const filtered = qs.filter(q => q.status === status)
+    return { count: filtered.length, brl: filtered.reduce((a, q) => a + getTotal(q), 0) }
   }
 
   const periodStats = useMemo<PeriodStats[]>(() => {
-    // Agrupa por ano → mês
     const map: Record<number, Record<number, Quotation[]>> = {}
     for (const q of quotations) {
       const d = new Date(q.created_at)
@@ -205,33 +210,24 @@ export default function HistoricoPage() {
 
     for (const year of years) {
       const months = Object.keys(map[year]).map(Number).sort((a, b) => b - a)
-      // Linha do ano (soma de todos os meses)
       const yearQs = months.flatMap(m => map[year][m])
       rows.push({
-        key: `y-${year}`,
-        label: String(year),
-        isYear: true,
-        year,
+        key: `y-${year}`, label: String(year), isYear: true, year,
         total:    yearQs.length,
-        clients:  new Set(yearQs.map(q => q.client_company).filter(Boolean)).size,
-        funnel:   yearQs.reduce((a, q) => a + getTotal(q), 0),
-        sent:     yearQs.filter(q => q.status === 'sent' || q.status === 'approved').length,
-        approved: yearQs.filter(q => q.status === 'approved').length,
+        saved:    bucket(yearQs, 'draft'),
+        sent:     bucket(yearQs, 'sent'),
+        approved: bucket(yearQs, 'approved'),
+        lost:     bucket(yearQs, 'lost'),
       })
-      // Linhas dos meses
       for (const month of months) {
         const mQs = map[year][month]
         rows.push({
-          key: `m-${year}-${month}`,
-          label: `${MONTHS_PT[month]}/${year}`,
-          isYear: false,
-          year,
-          month,
+          key: `m-${year}-${month}`, label: `${MONTHS_PT[month]}/${year}`, isYear: false, year, month,
           total:    mQs.length,
-          clients:  new Set(mQs.map(q => q.client_company).filter(Boolean)).size,
-          funnel:   mQs.reduce((a, q) => a + getTotal(q), 0),
-          sent:     mQs.filter(q => q.status === 'sent' || q.status === 'approved').length,
-          approved: mQs.filter(q => q.status === 'approved').length,
+          saved:    bucket(mQs, 'draft'),
+          sent:     bucket(mQs, 'sent'),
+          approved: bucket(mQs, 'approved'),
+          lost:     bucket(mQs, 'lost'),
         })
       }
     }
@@ -328,24 +324,34 @@ export default function HistoricoPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 w-40">Período</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Cotações</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Clientes atendidos</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Funil de vendas</th>
+                <th className="px-4 py-2.5 text-left   text-xs font-semibold text-gray-600 w-44">Período</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Salvas</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Enviadas</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Aprovadas</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Perdidas</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Conversão</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-xs">Carregando...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400 text-xs">Carregando...</td></tr>
               ) : periodStats.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhuma cotação ainda.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhuma cotação ainda.</td></tr>
               ) : periodStats.map(row => {
                 const conv = row.total > 0
-                  ? ((row.approved / row.total) * 100).toFixed(0) + '%'
+                  ? ((row.approved.count / row.total) * 100).toFixed(0) + '%'
                   : '—'
+
+                function Cell({ b, color }: { b: StatusBucket; color?: string }) {
+                  if (b.count === 0) return <span className="text-gray-400 text-xs">—</span>
+                  return (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className={`text-xs font-semibold ${color ?? 'text-gray-700'}`}>{b.count}</span>
+                      <span className="text-[10px] font-mono text-gray-500">R$ {brl(b.brl)}</span>
+                    </div>
+                  )
+                }
+
                 return (
                   <tr
                     key={row.key}
@@ -353,25 +359,24 @@ export default function HistoricoPage() {
                     style={row.isYear ? { backgroundColor: '#F1F5F9' } : {}}
                   >
                     <td className="px-4 py-2.5">
-                      {row.isYear ? (
-                        <span className="font-bold text-gray-800 text-xs">{row.label}</span>
-                      ) : (
-                        <span className="text-gray-600 text-xs pl-3">{row.label}</span>
-                      )}
+                      {row.isYear
+                        ? <span className="font-bold text-gray-800 text-xs">{row.label}</span>
+                        : <span className="text-gray-600 text-xs pl-3">{row.label}</span>}
                     </td>
-                    <td className="px-4 py-2.5 text-center text-xs font-medium text-gray-700">{row.total}</td>
-                    <td className="px-4 py-2.5 text-center text-xs text-gray-600">{row.clients}</td>
-                    <td className="px-4 py-2.5 text-center text-xs font-mono text-gray-700">
-                      R$ {brl(row.funnel)}
+                    <td className="px-4 py-2.5 text-center">
+                      <Cell b={row.saved} color="text-blue-700" />
                     </td>
-                    <td className="px-4 py-2.5 text-center text-xs text-gray-600">{row.sent}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      <Cell b={row.sent} color="text-amber-700" />
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <Cell b={row.approved} color="text-green-700" />
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <Cell b={row.lost} color="text-gray-500" />
+                    </td>
                     <td className="px-4 py-2.5 text-center text-xs">
-                      <span className={row.approved > 0 ? 'text-green-700 font-semibold' : 'text-gray-500'}>
-                        {row.approved}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-center text-xs">
-                      <span className={row.approved > 0 ? 'font-semibold text-green-700' : 'text-gray-500'}>
+                      <span className={row.approved.count > 0 ? 'font-semibold text-green-700' : 'text-gray-400'}>
                         {conv}
                       </span>
                     </td>
