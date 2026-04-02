@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       items,
       totals,
       status = 'draft',
+      created_by,
     } = body
 
     // destination_port derivado de cidade + estado (coluna original mantida)
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
       items:          items          ?? [],
       totals:         totals         ?? {},
       status:         status         ?? 'draft',
+      created_by:     created_by     ?? null,
     }
 
     // Usar upsert para evitar erro de duplicate key no quote_number

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { type Product, type PricingBreakdown } from '@/lib/pricingEngine'
+import { supabase } from '@/lib/supabase'
 
 // ─── Preços armazenados por fornecedor ────────────────────────────────────────
 
@@ -198,6 +199,19 @@ export default function CotacaoPage() {
     } catch { return '' }
   })
 
+  // ID da cotação já salva no banco (para PATCH de status)
+  const [savedQuotationId, setSavedQuotationId] = useState<string>(() => {
+    try { return localStorage.getItem(EDIT_KEY + '_saved') ?? '' } catch { return '' }
+  })
+
+  // ID do usuário logado (para created_by)
+  const [currentUserId, setCurrentUserId] = useState<string>('')
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.id) setCurrentUserId(data.user.id)
+    })
+  }, [])
+
   // Número de cotação — NUNCA restaurado do draft; sempre calculado do histórico
   const [quotationNumber, setQuotationNumber] = useState<string>(() => generateQuotationNumber(1))
   const [today] = useState(() => new Date())
@@ -288,6 +302,7 @@ export default function CotacaoPage() {
           // Veio do botão "Editar" do histórico — popula todos os campos
           const q = data.find(h => h.id === editingIdOnLoad)
           if (q) {
+            setSavedQuotationId(q.id)
             setSelectedHistoricoId(q.id)
             setQuotationNumber(q.quote_number)
             setEmpresa(q.client_company ?? '')
@@ -582,6 +597,7 @@ export default function CotacaoPage() {
           payment_terms: pagamento,
           delivery_days: parseInt(prazo) || 90,
           validity_days: parseInt(prazoValidade) || 30,
+          created_by: currentUserId || null,
           items: lineItems.map((li) => ({
             description: li.product.description,
             partNumber: li.product.partNumber,
@@ -605,6 +621,8 @@ export default function CotacaoPage() {
         }),
       })
       if (res.ok) {
+        const saved = await res.json().catch(() => ({}))
+        if (saved?.id) setSavedQuotationId(saved.id)
         alert('Cotação salva com sucesso!')
       } else {
         const errData = await res.json().catch(() => ({}))
@@ -627,6 +645,7 @@ export default function CotacaoPage() {
       delivery_days: parseInt(prazo) || 30,
       destination_port: cidade ? `${cidade}${estado ? ' - ' + estado : ''}` : '',
       validity_days: 30,
+      created_by: currentUserId || null,
       items: lineItems.map((li) => ({
         description: li.product.description,
         partNumber: li.product.partNumber,
@@ -705,10 +724,43 @@ export default function CotacaoPage() {
     fetch('/api/quotations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildQuotationPayload('sent')),
-    }).catch(() => {
-      // Salvar em background — falhas silenciosas para não interromper o PDF
-    })
+      body: JSON.stringify(buildQuotationPayload('draft')),
+    }).then(r => r.json()).then(saved => {
+      if (saved?.id) setSavedQuotationId(saved.id)
+    }).catch(() => {})
+  }
+
+  async function handleEnviarEmail() {
+    // 1. Salva/atualiza cotação com status 'sent'
+    try {
+      const idToUse = savedQuotationId || selectedHistoricoId
+      if (idToUse) {
+        // Já tem ID salvo — apenas atualiza status
+        await fetch(`/api/quotations/${idToUse}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'sent' }),
+        })
+        setSavedQuotationId(idToUse)
+      } else {
+        // Ainda não foi salva — salva agora com status sent
+        const res = await fetch('/api/quotations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildQuotationPayload('sent')),
+        })
+        const saved = await res.json().catch(() => ({}))
+        if (saved?.id) setSavedQuotationId(saved.id)
+      }
+    } catch {}
+
+    // 2. Abre mailto com o e-mail do cliente
+    const subject = encodeURIComponent(`Cotação ${quotationNumber} — Shiplog Pharma`)
+    const body = encodeURIComponent(
+      `Prezado(a) ${contato || empresa},\n\nSegue em anexo a cotação número ${quotationNumber}.\n\nAtenciosamente,\nShiplog Pharma`
+    )
+    const mailto = `mailto:${emailContato}?subject=${subject}&body=${body}`
+    window.location.href = mailto
   }
 
   const inputClass =
@@ -1135,7 +1187,7 @@ export default function CotacaoPage() {
         <button
           className="px-5 py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
           style={{ borderColor: '#0C3460', color: '#0C3460' }}
-          onClick={() => alert('Envio por e-mail em breve')}
+          onClick={handleEnviarEmail}
         >
           Enviar por E-mail
         </button>
