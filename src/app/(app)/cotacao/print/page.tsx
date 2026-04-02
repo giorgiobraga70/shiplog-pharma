@@ -218,19 +218,31 @@ ${innerHtml}
           {/* ── Dados do cliente ────────────────────────────────────────── */}
           {/* Removidos: Cond. Pagamento, Prazo de Entrega, Validade (já estão no rodapé) */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr',
-            gap: '2px 20px', fontSize: '10px', marginBottom: '8px',
+            fontSize: '10px', marginBottom: '8px',
             padding: '5px 8px', backgroundColor: '#F9FAFB',
             borderRadius: '4px', border: '1px solid #E2E8F0',
           }}>
-            <div><span style={{ color: '#64748B' }}>Empresa: </span><strong>{data.clientCompany || '—'}</strong></div>
-            <div><span style={{ color: '#64748B' }}>Cotação N°: </span><strong style={{ fontFamily: 'monospace' }}>{data.quoteNumber}</strong></div>
-            <div><span style={{ color: '#64748B' }}>CNPJ: </span>{data.clientCnpj || '—'}</div>
-            <div><span style={{ color: '#64748B' }}>Data: </span>{data.date}</div>
-            <div><span style={{ color: '#64748B' }}>Contato: </span>{data.clientContact || '—'}</div>
-            <div><span style={{ color: '#64748B' }}>Telefone: </span>{data.clientPhone || '—'}</div>
-            <div><span style={{ color: '#64748B' }}>E-mail: </span>{data.clientEmail || '—'}</div>
-            <div><span style={{ color: '#64748B' }}>Endereço: </span>{enderecoCompleto || '—'}</div>
+            {/* Linha 1: Empresa (esquerda) | Cotação N° + Data (direita) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '2px 20px', marginBottom: '2px' }}>
+              <div><span style={{ color: '#64748B' }}>Empresa: </span><strong>{data.clientCompany || '—'}</strong></div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ color: '#64748B' }}>Cotação N°: </span>
+                <strong style={{ fontFamily: 'monospace' }}>{data.quoteNumber}</strong>
+                <span style={{ color: '#64748B', marginLeft: '14px' }}>Data: </span>
+                <strong>{data.date}</strong>
+              </div>
+            </div>
+            {/* Linha 2: CNPJ | Contato | Telefone */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px 16px', marginBottom: '2px' }}>
+              <div><span style={{ color: '#64748B' }}>CNPJ: </span>{data.clientCnpj || '—'}</div>
+              <div><span style={{ color: '#64748B' }}>Contato: </span>{data.clientContact || '—'}</div>
+              <div><span style={{ color: '#64748B' }}>Telefone: </span>{data.clientPhone || '—'}</div>
+            </div>
+            {/* Linha 3: E-mail | Endereço completo */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>
+              <div><span style={{ color: '#64748B' }}>E-mail: </span>{data.clientEmail || '—'}</div>
+              <div><span style={{ color: '#64748B' }}>Endereço: </span>{enderecoCompleto || '—'}</div>
+            </div>
           </div>
 
           {/* ── Tabela de itens ─────────────────────────────────────────── */}
@@ -241,13 +253,13 @@ ${innerHtml}
           }}>
             <colgroup>
               <col style={{ width: '2%' }} />   {/* N° */}
-              <col style={{ width: '16%' }} />  {/* Descrição */}
-              <col style={{ width: '10%' }} />  {/* Part Number */}
+              <col style={{ width: '15%' }} />  {/* Descrição */}
+              <col style={{ width: '13%' }} />  {/* Part Number — mais largo */}
               <col style={{ width: '7%' }} />   {/* NCM */}
-              <col style={{ width: '4%' }} />   {/* Vol. */}
+              <col style={{ width: '3%' }} />   {/* Vol. */}
               <col style={{ width: '6%' }} />   {/* Tamanho */}
               <col style={{ width: '4%' }} />   {/* UN/CX */}
-              <col style={{ width: '4%' }} />   {/* QTD CX */}
+              <col style={{ width: '3%' }} />   {/* QTD CX */}
               <col style={{ width: '5%' }} />   {/* QTD UN */}
               {/* 6 colunas de preço — largura igual: 42% ÷ 6 = 7% cada */}
               <col style={{ width: '7%' }} />
@@ -357,13 +369,11 @@ ${innerHtml}
           {/* ── Condições comerciais (rodapé) ───────────────────────────── */}
           <div style={{
             backgroundColor: '#F9FAFB', border: '1px solid #E2E8F0', borderRadius: '4px',
-            padding: '6px 10px', fontSize: '10px', display: 'grid',
-            gridTemplateColumns: '1fr 1fr', gap: '3px 20px',
+            padding: '6px 10px', fontSize: '10px', display: 'flex', gap: '32px',
           }}>
             <div><span style={{ color: '#64748B', fontWeight: 600 }}>Condições de Pagamento: </span>{data.paymentTerms}</div>
             <div><span style={{ color: '#64748B', fontWeight: 600 }}>Prazo de Entrega: </span>{data.deliveryDays} dias</div>
             <div><span style={{ color: '#64748B', fontWeight: 600 }}>Validade da Cotação: </span>{data.validityDays} dias</div>
-            <div><span style={{ color: '#64748B', fontWeight: 600 }}>Taxa Cambial USD: </span>{num(data.usdBrl, 2)} BRL</div>
           </div>
 
           {/* Legenda dos preços */}
