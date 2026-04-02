@@ -171,25 +171,72 @@ export default function HistoricoPage() {
     })
   }, [quotations, search, statusFilter])
 
-  const currentMonth = new Date().getMonth()
-  const currentYear = new Date().getFullYear()
-  const thisMonthQuotations = quotations.filter(q => {
-    const d = new Date(q.created_at)
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear
-  })
-  const approvedThisMonth = thisMonthQuotations.filter(q => q.status === 'approved')
-  const uniqueClients = new Set(thisMonthQuotations.map(q => q.client_company)).size
-  const volumeTotal = thisMonthQuotations.reduce((a, q) => a + getTotal(q), 0)
-  const conversionRate = thisMonthQuotations.length > 0
-    ? ((approvedThisMonth.length / thisMonthQuotations.length) * 100).toFixed(1)
-    : '0'
+  // ── Estatísticas por ano e por mês ──────────────────────────────────────────
+  const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                     'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
-  const metricCards = [
-    { label: 'Cotações no mês',   value: String(thisMonthQuotations.length), delta: `${approvedThisMonth.length} aprovadas` },
-    { label: 'Clientes atendidos', value: String(uniqueClients), delta: 'empresas distintas' },
-    { label: 'Volume total',       value: `R$ ${brl(volumeTotal)}`, delta: 'no mês atual' },
-    { label: 'Conversão',          value: `${conversionRate}%`, delta: `${approvedThisMonth.length} aprovadas de ${thisMonthQuotations.length}` },
-  ]
+  interface PeriodStats {
+    key: string
+    label: string
+    isYear: boolean
+    year: number
+    month?: number
+    total: number
+    clients: number
+    funnel: number
+    sent: number
+    approved: number
+  }
+
+  const periodStats = useMemo<PeriodStats[]>(() => {
+    // Agrupa por ano → mês
+    const map: Record<number, Record<number, Quotation[]>> = {}
+    for (const q of quotations) {
+      const d = new Date(q.created_at)
+      const y = d.getFullYear()
+      const m = d.getMonth()
+      if (!map[y]) map[y] = {}
+      if (!map[y][m]) map[y][m] = []
+      map[y][m].push(q)
+    }
+
+    const rows: PeriodStats[] = []
+    const years = Object.keys(map).map(Number).sort((a, b) => b - a)
+
+    for (const year of years) {
+      const months = Object.keys(map[year]).map(Number).sort((a, b) => b - a)
+      // Linha do ano (soma de todos os meses)
+      const yearQs = months.flatMap(m => map[year][m])
+      rows.push({
+        key: `y-${year}`,
+        label: String(year),
+        isYear: true,
+        year,
+        total:    yearQs.length,
+        clients:  new Set(yearQs.map(q => q.client_company).filter(Boolean)).size,
+        funnel:   yearQs.reduce((a, q) => a + getTotal(q), 0),
+        sent:     yearQs.filter(q => q.status === 'sent' || q.status === 'approved').length,
+        approved: yearQs.filter(q => q.status === 'approved').length,
+      })
+      // Linhas dos meses
+      for (const month of months) {
+        const mQs = map[year][month]
+        rows.push({
+          key: `m-${year}-${month}`,
+          label: `${MONTHS_PT[month]}/${year}`,
+          isYear: false,
+          year,
+          month,
+          total:    mQs.length,
+          clients:  new Set(mQs.map(q => q.client_company).filter(Boolean)).size,
+          funnel:   mQs.reduce((a, q) => a + getTotal(q), 0),
+          sent:     mQs.filter(q => q.status === 'sent' || q.status === 'approved').length,
+          approved: mQs.filter(q => q.status === 'approved').length,
+        })
+      }
+    }
+    return rows
+  }, [quotations])
 
   async function handleDeletarCotacao(q: Quotation) {
     if (!confirm(`Deletar cotação ${q.quote_number} — ${q.client_company || '(sem empresa)'}?\n\nEsta ação não pode ser desfeita.`)) return
@@ -272,15 +319,68 @@ export default function HistoricoPage() {
         <p className="text-sm text-gray-500 mt-0.5">Visualize e gerencie todas as cotações emitidas</p>
       </div>
 
-      {/* Cards de métricas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {metricCards.map(card => (
-          <div key={card.label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <p className="text-xs font-medium text-gray-500 mb-1">{card.label}</p>
-            <p className="text-2xl font-bold text-gray-900">{card.value}</p>
-            <p className="text-xs text-gray-400 mt-1">{card.delta}</p>
-          </div>
-        ))}
+      {/* Estatísticas por período */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-700">Estatísticas por Período</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 w-40">Período</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Cotações</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Clientes atendidos</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Funil de vendas</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Enviadas</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Aprovadas</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Conversão</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-xs">Carregando...</td></tr>
+              ) : periodStats.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhuma cotação ainda.</td></tr>
+              ) : periodStats.map(row => {
+                const conv = row.total > 0
+                  ? ((row.approved / row.total) * 100).toFixed(0) + '%'
+                  : '—'
+                return (
+                  <tr
+                    key={row.key}
+                    className="border-b border-gray-100 last:border-0"
+                    style={row.isYear ? { backgroundColor: '#F1F5F9' } : {}}
+                  >
+                    <td className="px-4 py-2.5">
+                      {row.isYear ? (
+                        <span className="font-bold text-gray-800 text-xs">{row.label}</span>
+                      ) : (
+                        <span className="text-gray-600 text-xs pl-3">{row.label}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-center text-xs font-medium text-gray-700">{row.total}</td>
+                    <td className="px-4 py-2.5 text-center text-xs text-gray-600">{row.clients}</td>
+                    <td className="px-4 py-2.5 text-center text-xs font-mono text-gray-700">
+                      R$ {brl(row.funnel)}
+                    </td>
+                    <td className="px-4 py-2.5 text-center text-xs text-gray-600">{row.sent}</td>
+                    <td className="px-4 py-2.5 text-center text-xs">
+                      <span className={row.approved > 0 ? 'text-green-700 font-semibold' : 'text-gray-500'}>
+                        {row.approved}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-center text-xs">
+                      <span className={row.approved > 0 ? 'font-semibold text-green-700' : 'text-gray-500'}>
+                        {conv}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Tabela */}
