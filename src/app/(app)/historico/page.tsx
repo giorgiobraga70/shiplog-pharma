@@ -403,49 +403,37 @@ export default function HistoricoPage() {
           <div className="px-5 py-5 flex flex-col gap-1">
             {funnelData.map((stage, i) => {
               const totalCount = funnelData[0].count
-              // Largura proporcional ao total; mínimo 30% para legibilidade
               const widthPct = totalCount > 0
                 ? Math.max(30, Math.round((stage.count / totalCount) * 100))
                 : 100
-              const pctLabel = i === 0
-                ? '100%'
-                : totalCount > 0
-                  ? ((stage.count / totalCount) * 100).toFixed(0) + '%'
-                  : '—'
+              const pctLabel = i === 0 ? '100%'
+                : totalCount > 0 ? ((stage.count / totalCount) * 100).toFixed(0) + '%' : '—'
 
               return (
-                <div key={stage.label}>
-                  {/* Barra trapezoidal — diminui a cada nível */}
-                  <div className="flex flex-col items-center">
-                    <div
-                      style={{
-                        width: `${widthPct}%`,
-                        backgroundColor: stage.color,
-                        clipPath: i < funnelData.length - 1
-                          ? 'polygon(0% 0%, 100% 0%, 92% 100%, 8% 100%)'
-                          : 'polygon(8% 0%, 92% 0%, 84% 100%, 16% 100%)',
-                      }}
-                      className="flex items-center justify-between px-4 py-2.5 text-white"
-                    >
-                      <span className="text-xs font-semibold drop-shadow">{stage.label}</span>
-                      <div className="text-right">
-                        <div className="text-sm font-bold">{stage.count}</div>
-                        <div className="text-[10px] opacity-80 font-mono">R$ {brl(stage.brl)}</div>
-                      </div>
-                    </div>
-                    {/* Percentual entre estágios */}
-                    {i < funnelData.length - 1 && (
-                      <div className="flex items-center gap-1 py-0.5">
-                        <div className="h-px w-6 bg-gray-200" />
-                        <span className="text-[10px] text-gray-400">{pctLabel}</span>
-                        <div className="h-px w-6 bg-gray-200" />
-                      </div>
-                    )}
+                <div key={stage.label} className="flex flex-col items-center">
+                  <div
+                    style={{
+                      width: `${widthPct}%`,
+                      backgroundColor: stage.color,
+                      clipPath: i < funnelData.length - 1
+                        ? 'polygon(0% 0%, 100% 0%, 92% 100%, 8% 100%)'
+                        : 'polygon(8% 0%, 92% 0%, 84% 100%, 16% 100%)',
+                    }}
+                    className="flex flex-col items-center justify-center py-3 text-white text-center"
+                  >
+                    <span className="text-xs font-semibold">{stage.label}</span>
+                    <span className="text-[10px] opacity-80 font-mono mt-0.5">R$ {brl(stage.brl)}</span>
                   </div>
+                  {i < funnelData.length - 1 && (
+                    <div className="flex items-center gap-1 py-0.5">
+                      <div className="h-px w-6 bg-gray-200" />
+                      <span className="text-[10px] text-gray-400">{pctLabel}</span>
+                      <div className="h-px w-6 bg-gray-200" />
+                    </div>
+                  )}
                 </div>
               )
             })}
-            {/* Percentual final (aprovadas) */}
             {funnelData[0].count > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                 <span className="text-xs text-gray-500">Conversão geral</span>
