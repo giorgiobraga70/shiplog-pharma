@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 
 type QuotationStatus = 'draft' | 'sent' | 'approved' | 'lost'
-type StatusLabel = 'Rascunho' | 'Enviada' | 'Aprovada' | 'Perdida'
+type StatusLabel = 'Salva' | 'Enviada' | 'Aprovada' | 'Perdida'
 
 interface Quotation {
   id: string
@@ -55,31 +55,31 @@ interface Quotation {
   } | null
 }
 
-// Ordem: Rascunho → Enviada → Aprovada → Perdida
+// Ordem: Salva → Enviada → Aprovada → Perdida
 const STATUS_ORDER: QuotationStatus[] = ['draft', 'sent', 'approved', 'lost']
 
 const STATUS_LABEL: Record<QuotationStatus, StatusLabel> = {
-  draft:    'Rascunho',
+  draft:    'Salva',
   sent:     'Enviada',
   approved: 'Aprovada',
   lost:     'Perdida',
 }
 
 const LABEL_TO_STATUS: Record<StatusLabel, QuotationStatus> = {
-  Rascunho: 'draft',
+  Salva: 'draft',
   Enviada:  'sent',
   Aprovada: 'approved',
   Perdida:  'lost',
 }
 
 const STATUS_STYLES: Record<StatusLabel, { bg: string; color: string }> = {
-  Rascunho: { bg: '#E6F1FB', color: '#0C447C' },
+  Salva: { bg: '#E6F1FB', color: '#0C447C' },
   Enviada:  { bg: '#FAEEDA', color: '#633806' },
   Aprovada: { bg: '#EAF3DE', color: '#27500A' },
   Perdida:  { bg: '#F1EFE8', color: '#444441' },
 }
 
-const STATUS_OPTIONS: (StatusLabel | 'Todos')[] = ['Todos', 'Rascunho', 'Enviada', 'Aprovada', 'Perdida']
+const STATUS_OPTIONS: (StatusLabel | 'Todos')[] = ['Todos', 'Salva', 'Enviada', 'Aprovada', 'Perdida']
 
 function brl(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -160,7 +160,7 @@ export default function HistoricoPage() {
 
   const filtered = useMemo(() => {
     return quotations.filter(q => {
-      const label = STATUS_LABEL[q.status] ?? 'Rascunho'
+      const label = STATUS_LABEL[q.status] ?? 'Salva'
       const matchSearch =
         !search ||
         (q.quote_number ?? '').toLowerCase().includes(search.toLowerCase()) ||
@@ -520,7 +520,7 @@ export default function HistoricoPage() {
                 </tr>
               ) : (
                 filtered.map(q => {
-                  const label: StatusLabel = STATUS_LABEL[q.status] ?? 'Rascunho'
+                  const label: StatusLabel = STATUS_LABEL[q.status] ?? 'Salva'
                   const style = STATUS_STYLES[label]
                   const isOpen = openStatusId === q.id
                   const isUpdating = updatingId === q.id
