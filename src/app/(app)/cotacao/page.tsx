@@ -204,12 +204,27 @@ export default function CotacaoPage() {
     try { return localStorage.getItem(EDIT_KEY + '_saved') ?? '' } catch { return '' }
   })
 
-  // ID do usuário logado (para created_by)
+  // ID e nome do usuário logado (para created_by e responsible_name)
   const [currentUserId, setCurrentUserId] = useState<string>('')
+  const [currentUserName, setCurrentUserName] = useState<string>('')
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.id) setCurrentUserId(data.user.id)
-    })
+    async function loadUser() {
+      const { data } = await supabase.auth.getUser()
+      if (!data.user?.id) return
+      setCurrentUserId(data.user.id)
+      // Busca nome no profiles
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('nome')
+          .eq('id', data.user.id)
+          .single()
+        if (profile?.nome) { setCurrentUserName(profile.nome); return }
+      } catch {}
+      // Fallback: parte do e-mail antes do @
+      if (data.user.email) setCurrentUserName(data.user.email.split('@')[0])
+    }
+    loadUser()
   }, [])
 
   // Número de cotação — NUNCA restaurado do draft; sempre calculado do histórico
@@ -598,6 +613,7 @@ export default function CotacaoPage() {
           delivery_days: parseInt(prazo) || 90,
           validity_days: parseInt(prazoValidade) || 30,
           created_by: currentUserId || null,
+          responsible_name: currentUserName || null,
           items: lineItems.map((li) => ({
             description: li.product.description,
             partNumber: li.product.partNumber,
@@ -646,6 +662,7 @@ export default function CotacaoPage() {
       destination_port: cidade ? `${cidade}${estado ? ' - ' + estado : ''}` : '',
       validity_days: 30,
       created_by: currentUserId || null,
+      responsible_name: currentUserName || null,
       items: lineItems.map((li) => ({
         description: li.product.description,
         partNumber: li.product.partNumber,

@@ -78,10 +78,14 @@ export async function POST(request: Request) {
       totals,
       status = 'draft',
       created_by,
+      responsible_name: responsibleFromClient,
     } = body
 
-    // Busca nome do responsável (profiles.nome → email como fallback)
-    const responsible_name = created_by ? await fetchResponsibleName(created_by) : ''
+    // Usa nome enviado pelo cliente; fallback via auth.admin se vier vazio
+    let responsible_name: string = responsibleFromClient || ''
+    if (!responsible_name && created_by) {
+      responsible_name = await fetchResponsibleName(created_by)
+    }
 
     // destination_port derivado de cidade + estado (coluna original mantida)
     const destination_port = client_city
