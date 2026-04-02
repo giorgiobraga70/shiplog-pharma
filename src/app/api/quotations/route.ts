@@ -77,33 +77,34 @@ export async function POST(request: Request) {
 
     if (!error) return NextResponse.json(data, { status: 201 })
 
-    // ── Se erro por coluna inexistente, tenta apenas com colunas originais ────
-    if (error.message.includes('column') || error.message.includes('does not exist')) {
-      const basePayload = {
-        quote_number,
-        client_company,
-        client_email,
-        client_contact,
-        usd_brl,
-        payment_terms,
-        delivery_days,
-        destination_port,
-        validity_days,
-        items,
-        totals,
-        status,
-      }
-      const { data: data2, error: error2 } = await supabaseServer
-        .from('quotations')
-        .insert([basePayload])
-        .select()
-        .single()
-
-      if (error2) return NextResponse.json({ error: error2.message }, { status: 500 })
-      return NextResponse.json(data2, { status: 201 })
+    // ── Fallback: qualquer erro no insert completo → tenta só colunas originais ─
+    const basePayload = {
+      quote_number,
+      client_company,
+      client_email:   client_email   ?? null,
+      client_contact: client_contact ?? null,
+      usd_brl:        usd_brl        ?? 5.25,
+      payment_terms:  payment_terms  ?? null,
+      delivery_days:  delivery_days  ?? 90,
+      destination_port,
+      validity_days:  validity_days  ?? 30,
+      items:          items          ?? [],
+      totals:         totals         ?? {},
+      status,
     }
+    const { data: data2, error: error2 } = await supabaseServer
+      .from('quotations')
+      .insert([basePayload])
+      .select()
+      .single()
 
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error2) {
+      // Retorna ambos os erros para facilitar debug
+      return NextResponse.json({
+        error: `${error2.message} (fallback após: ${error.message})`
+      }, { status: 500 })
+    }
+    return NextResponse.json(data2, { status: 201 })
   } catch {
     return NextResponse.json({ error: 'Erro interno ao salvar cotação.' }, { status: 500 })
   }

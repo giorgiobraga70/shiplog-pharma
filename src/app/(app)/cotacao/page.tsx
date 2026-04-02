@@ -348,10 +348,14 @@ export default function CotacaoPage() {
           status: 'draft',
         }),
       })
-      if (res.ok) alert('Cotação salva com sucesso!')
-      else alert('Erro ao salvar cotação.')
-    } catch {
-      alert('Erro ao salvar cotação.')
+      if (res.ok) {
+        alert('Cotação salva com sucesso!')
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        alert(`Erro ao salvar cotação:\n${errData.error || res.statusText}`)
+      }
+    } catch (err) {
+      alert(`Erro ao salvar cotação:\n${err instanceof Error ? err.message : 'Erro desconhecido'}`)
     }
   }
 
