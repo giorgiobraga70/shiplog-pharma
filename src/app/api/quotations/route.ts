@@ -11,22 +11,32 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // Busca nomes dos responsáveis via profiles
-    const createdByIds = [...new Set((data ?? []).map((q: Record<string, string>) => q.created_by).filter(Boolean))]
+    // Para linhas que não têm responsible_name salvo, tenta via profiles
+    const rows = data ?? []
+    const missingIds = [...new Set(
+      rows
+        .filter((q: Record<string, unknown>) => !q.responsible_name && q.created_by)
+        .map((q: Record<string, unknown>) => q.created_by as string)
+    )]
+
     let profileMap: Record<string, string> = {}
-    if (createdByIds.length > 0) {
+    if (missingIds.length > 0) {
       const { data: profiles } = await supabaseServer
         .from('profiles')
         .select('id, nome')
-        .in('id', createdByIds)
+        .in('id', missingIds)
       if (profiles) {
-        profileMap = Object.fromEntries(profiles.map((p: { id: string; nome: string }) => [p.id, p.nome ?? '']))
+        profileMap = Object.fromEntries(
+          profiles.map((p: { id: string; nome: string }) => [p.id, p.nome ?? ''])
+        )
       }
     }
 
-    const enriched = (data ?? []).map((q: Record<string, unknown>) => ({
+    const enriched = rows.map((q: Record<string, unknown>) => ({
       ...q,
-      responsible_name: q.created_by ? (profileMap[q.created_by as string] ?? '') : '',
+      responsible_name:
+        (q.responsible_name as string) ||
+        (q.created_by ? (profileMap[q.created_by as string] ?? '') : ''),
     }))
 
     return NextResponse.json(enriched)
@@ -61,36 +71,47 @@ export async function POST(request: Request) {
       created_by,
     } = body
 
+    // Busca nome do responsável server-side para gravar junto à cotação
+    let responsible_name = ''
+    if (created_by) {
+      const { data: profile } = await supabaseServer
+        .from('profiles')
+        .select('nome')
+        .eq('id', created_by)
+        .single()
+      responsible_name = profile?.nome ?? ''
+    }
+
     // destination_port derivado de cidade + estado (coluna original mantida)
     const destination_port = client_city
       ? `${client_city}${client_state ? ' - ' + client_state : ''}`
       : null
 
-    // ── Primeiro tenta com todos os campos (incluindo novos) ──────────────────
+    // ── Tenta com todos os campos (incluindo colunas novas) ───────────────────
     const fullPayload = {
       quote_number,
       client_company,
-      client_email:   client_email   ?? null,
-      client_contact: client_contact ?? null,
-      client_phone:   client_phone   ?? null,
-      client_cnpj:    client_cnpj    ?? null,
-      client_address: client_address ?? null,
-      client_city:    client_city    ?? null,
-      client_state:   client_state   ?? null,
-      client_cep:     client_cep     ?? null,
-      supplier:       supplier       ?? null,
-      usd_brl_rate:   usd_brl        ?? 5.25,
-      payment_terms:  payment_terms  ?? null,
-      delivery_days:  delivery_days  ?? null,
+      client_email:      client_email   ?? null,
+      client_contact:    client_contact ?? null,
+      client_phone:      client_phone   ?? null,
+      client_cnpj:       client_cnpj    ?? null,
+      client_address:    client_address ?? null,
+      client_city:       client_city    ?? null,
+      client_state:      client_state   ?? null,
+      client_cep:        client_cep     ?? null,
+      supplier:          supplier       ?? null,
+      usd_brl_rate:      usd_brl        ?? 5.25,
+      payment_terms:     payment_terms  ?? null,
+      delivery_days:     delivery_days  ?? null,
       destination_port,
-      validity_days:  validity_days  ?? null,
-      items:          items          ?? [],
-      totals:         totals         ?? {},
-      status:         status         ?? 'draft',
-      created_by:     created_by     ?? null,
+      validity_days:     validity_days  ?? null,
+      items:             items          ?? [],
+      totals:            totals         ?? {},
+      status:            status         ?? 'draft',
+      created_by:        created_by     ?? null,
+      responsible_name:  responsible_name || null,
     }
 
-    // Usar upsert para evitar erro de duplicate key no quote_number
     const { data, error } = await supabaseServer
       .from('quotations')
       .upsert([fullPayload], { onConflict: 'quote_number' })
@@ -99,7 +120,7 @@ export async function POST(request: Request) {
 
     if (!error) return NextResponse.json(data, { status: 201 })
 
-    // ── Fallback: qualquer erro → tenta só colunas originais ─────────────────
+    // ── Fallback: erro → tenta sem colunas que podem não existir ─────────────
     const basePayload = {
       quote_number,
       client_company,
