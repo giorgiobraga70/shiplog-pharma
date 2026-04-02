@@ -188,8 +188,8 @@ function loadDraft(): Record<string, unknown> | null {
 export default function CotacaoPage() {
   const draft = loadDraft()
 
-  // Dados da cotação — restaura do rascunho se existir
-  const [quotationNumber, setQuotationNumber] = useState<string>(() => (draft?.quotationNumber as string) ?? generateQuotationNumber(1))
+  // Número de cotação — NUNCA restaurado do draft; sempre calculado do histórico
+  const [quotationNumber, setQuotationNumber] = useState<string>(() => generateQuotationNumber(1))
   const [today] = useState(() => new Date())
 
   // Histórico para dropdown e numeração sequencial
@@ -261,27 +261,23 @@ export default function CotacaoPage() {
       .then((data: HistoricoItem[]) => {
         if (!Array.isArray(data)) return
         setHistorico(data)
-        // Se não há rascunho de uma cotação existente, gera próximo número do dia
-        const currentDraft = loadDraft()
-        const existingQuoteNumber = currentDraft?.quotationNumber as string | undefined
-        const isEditing = existingQuoteNumber && data.some(q => q.quote_number === existingQuoteNumber)
-        if (!isEditing) {
-          const prefix = todayPrefix()
-          const seqs = data
-            .filter(q => q.quote_number?.startsWith(prefix))
-            .map(q => parseInt(q.quote_number?.split('-')[1] ?? '0', 10))
-            .filter(n => !isNaN(n))
-          const next = seqs.length > 0 ? Math.max(...seqs) + 1 : 1
-          setQuotationNumber(generateQuotationNumber(next))
-        }
+        // Sempre calcula o próximo número do dia para nova cotação
+        // (handleSelectHistorico substitui quando o usuário escolher uma do histórico)
+        const prefix = todayPrefix()
+        const seqs = data
+          .filter(q => q.quote_number?.startsWith(prefix))
+          .map(q => parseInt(q.quote_number?.split('-')[1] ?? '0', 10))
+          .filter(n => !isNaN(n))
+        const next = seqs.length > 0 ? Math.max(...seqs) + 1 : 1
+        setQuotationNumber(generateQuotationNumber(next))
       })
       .catch(() => {})
   }, [])
 
-  // Auto-salvar rascunho local sempre que dados mudarem (inclui itens)
+  // Auto-salvar rascunho local (quotationNumber NÃO é salvo — sempre recalculado)
   useEffect(() => {
     saveDraft({
-      quotationNumber, empresa, contato, emailContato, telefone,
+      empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
       prazoValidade, pagamento, prazo,
       savedItems: lineItems.map(li => ({
@@ -289,7 +285,7 @@ export default function CotacaoPage() {
         qtyBoxes: li.qtyBoxes,
       })),
     })
-  }, [quotationNumber, empresa, contato, emailContato, telefone,
+  }, [empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
       prazoValidade, pagamento, prazo, lineItems])
 
