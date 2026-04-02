@@ -251,7 +251,7 @@ export default function CotacaoPage() {
       const q = productSearch.toLowerCase()
       list = list.filter(p => p.description.toLowerCase().includes(q) || p.partNumber.toLowerCase().includes(q))
     }
-    return list.slice(0, 20)
+    return list
   }, [products, productSearch, filterTipo, filterVolume, filterCor])
 
   // Buscar histórico + calcular próximo número sequencial do dia
