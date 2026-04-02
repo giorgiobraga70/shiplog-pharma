@@ -320,11 +320,25 @@ export default function HistoricoPage() {
     window.open('/cotacao/print', '_blank')
   }
 
+  function handleRelatorio() {
+    localStorage.setItem('historico_print_data', JSON.stringify({ quotations, periodStats, funnelData }))
+    window.open('/historico/print', '_blank')
+  }
+
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Histórico de Cotações</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Visualize e gerencie todas as cotações emitidas</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Histórico de Cotações</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Visualize e gerencie todas as cotações emitidas</p>
+        </div>
+        <button
+          onClick={handleRelatorio}
+          className="px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:opacity-90 whitespace-nowrap"
+          style={{ borderColor: '#0C3460', color: '#0C3460' }}
+        >
+          Relatório PDF
+        </button>
       </div>
 
       {/* Tabela */}

@@ -810,14 +810,13 @@ export default function CotacaoPage() {
               </option>
             ))}
           </select>
-          {selectedHistoricoId && (
-            <button
-              onClick={handleNovaCotacao}
-              className="px-3 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap"
-            >
-              + Nova
-            </button>
-          )}
+          <button
+            onClick={handleNovaCotacao}
+            className="px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors whitespace-nowrap"
+            style={{ backgroundColor: '#0C3460' }}
+          >
+            + Nova Cotação
+          </button>
         </div>
       </div>
 
@@ -1180,13 +1179,6 @@ export default function CotacaoPage() {
 
       {/* ── Barra de Ações ───────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 pt-2 pb-6">
-        <button
-          className="px-5 py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-gray-100"
-          style={{ borderColor: '#64748B', color: '#64748B' }}
-          onClick={handleNovaCotacao}
-        >
-          + Nova Cotação
-        </button>
         <button
           className="px-5 py-2.5 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90"
           style={{ backgroundColor: '#0F6E56' }}

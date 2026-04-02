@@ -168,6 +168,44 @@ export default function ClientesPage() {
     } catch { setClientQuotations([]) }
   }
 
+  async function handleRelatorio() {
+    try {
+      const res = await fetch('/api/quotations')
+      const allQuotations: { client_company?: string; client_email?: string; quote_number: string; created_at: string; status: string; totals?: { grandTotalBrl?: number }; items?: unknown[] }[] = await res.json()
+      const clientsWithQuotations = clients.map(c => ({
+        id: c.id,
+        empresa: c.empresa,
+        cnpj: c.cnpj ?? '',
+        contato: c.contato ?? '',
+        email: c.email ?? '',
+        telefone: c.telefone ?? '',
+        endereco: [c.endereco, c.cidade, c.estado, c.cep ? `CEP ${c.cep}` : ''].filter(Boolean).join(', '),
+        quotations: Array.isArray(allQuotations)
+          ? allQuotations
+              .filter(q =>
+                (c.empresa && q.client_company === c.empresa) ||
+                (c.email && q.client_email === c.email)
+              )
+              .map(q => ({
+                quote_number: q.quote_number,
+                created_at: q.created_at,
+                status: q.status,
+                items: Array.isArray(q.items) ? q.items.length : 0,
+                total: q.totals?.grandTotalBrl ?? 0,
+              }))
+          : [],
+      }))
+      localStorage.setItem('clientes_print_data', JSON.stringify({
+        clients: clientsWithQuotations,
+        totalClients: clients.length,
+        totalQuotations: Array.isArray(allQuotations) ? allQuotations.length : 0,
+      }))
+      window.open('/admin/clientes/print', '_blank')
+    } catch {
+      alert('Erro ao gerar relatório.')
+    }
+  }
+
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -175,11 +213,20 @@ export default function ClientesPage() {
           <h1 className="text-xl font-bold text-gray-900">Clientes</h1>
           <p className="text-sm text-gray-500 mt-0.5">Cadastro e histórico de clientes</p>
         </div>
-        <button onClick={openNew}
-          className="px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors"
-          style={{ backgroundColor: '#0C3460' }}>
-          + Novo Cliente
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRelatorio}
+            className="px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:opacity-90 whitespace-nowrap"
+            style={{ borderColor: '#0C3460', color: '#0C3460' }}
+          >
+            Relatório PDF
+          </button>
+          <button onClick={openNew}
+            className="px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors"
+            style={{ backgroundColor: '#0C3460' }}>
+            + Novo Cliente
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
