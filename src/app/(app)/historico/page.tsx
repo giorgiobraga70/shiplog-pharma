@@ -145,6 +145,31 @@ export default function HistoricoPage() {
     { label: 'Conversão', value: `${conversionRate}%`, delta: `${approvedThisMonth.length} aprovadas de ${thisMonthQuotations.length}` },
   ]
 
+  function handleEditarCotacao(q: Quotation) {
+    const draft = {
+      quotationNumber: q.quote_number,
+      empresa:         q.client_company  ?? '',
+      contato:         q.client_contact  ?? '',
+      emailContato:    q.client_email    ?? '',
+      telefone:        q.client_phone    ?? '',
+      cnpj:            q.client_cnpj     ?? '',
+      endereco:        q.client_address  ?? '',
+      cidade:          q.client_city     ?? '',
+      estado:          q.client_state    ?? '',
+      cep:             q.client_cep      ?? '',
+      fornecedor:      q.supplier        ?? 'Four Star',
+      prazoValidade:   String(q.validity_days  ?? 30),
+      pagamento:       q.payment_terms   ?? '50% no ato do pedido + 50% na entrega',
+      prazo:           String(q.delivery_days  ?? 90),
+      savedItems: (q.items ?? []).map(item => ({
+        partNumber: item.partNumber,
+        qtyBoxes:   item.qtyBoxes,
+      })),
+    }
+    localStorage.setItem('cotacao_draft_v2', JSON.stringify(draft))
+    window.location.href = '/cotacao'
+  }
+
   function handleVerCotacao(q: Quotation) {
     const enderecoCompleto = [q.client_address, q.client_city, q.client_state, q.client_cep ? `CEP ${q.client_cep}` : null]
       .filter(Boolean).join(', ')
@@ -302,12 +327,20 @@ export default function HistoricoPage() {
                         R$ {brl(getTotal(q))}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => handleVerCotacao(q)}
-                          className="text-blue-600 hover:text-blue-900 transition-colors text-xs font-semibold underline"
-                        >
-                          Ver PDF
-                        </button>
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => handleVerCotacao(q)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors text-xs font-semibold underline"
+                          >
+                            Ver PDF
+                          </button>
+                          <button
+                            onClick={() => handleEditarCotacao(q)}
+                            className="text-green-700 hover:text-green-900 transition-colors text-xs font-semibold underline"
+                          >
+                            Editar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

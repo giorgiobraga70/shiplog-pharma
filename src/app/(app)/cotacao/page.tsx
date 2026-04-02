@@ -221,16 +221,20 @@ export default function CotacaoPage() {
     return list.slice(0, 20)
   }, [products, productSearch, filterTipo, filterVolume, filterCor])
 
-  // Auto-salvar rascunho local sempre que dados mudarem
+  // Auto-salvar rascunho local sempre que dados mudarem (inclui itens)
   useEffect(() => {
     saveDraft({
       quotationNumber, empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
       prazoValidade, pagamento, prazo,
+      savedItems: lineItems.map(li => ({
+        partNumber: li.product.partNumber,
+        qtyBoxes: li.qtyBoxes,
+      })),
     })
   }, [quotationNumber, empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo])
+      prazoValidade, pagamento, prazo, lineItems])
 
   function handleNovaCotacao() {
     if (lineItems.length > 0 || empresa) {
@@ -263,7 +267,7 @@ export default function CotacaoPage() {
     }
   }, [lineItems])
 
-  // Carregar produtos do banco
+  // Carregar produtos do banco e restaurar itens do rascunho
   useEffect(() => {
     fetch('/api/products')
       .then((r) => r.json())
@@ -275,11 +279,25 @@ export default function CotacaoPage() {
             setSelectedProductId(mapped[0].id)
             setProductSearch(`${mapped[0].description} — ${mapped[0].partNumber}`)
           }
+
+          // Restaurar itens salvos no rascunho
+          const saved = loadDraft()
+          const savedItems = saved?.savedItems as Array<{ partNumber: string; qtyBoxes: number }> | undefined
+          if (savedItems && savedItems.length > 0) {
+            const fornecedorAtual = (saved?.fornecedor as string) ?? 'Four Star'
+            const restored: LineItem[] = []
+            for (const si of savedItems) {
+              const product = mapped.find(p => p.partNumber === si.partNumber)
+              if (product) {
+                const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
+                restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, breakdown })
+              }
+            }
+            if (restored.length > 0) setLineItems(restored)
+          }
         }
       })
-      .catch(() => {
-        // Silencia erros de rede — o select mostrará "Carregando produtos..."
-      })
+      .catch(() => {})
       .finally(() => setLoadingProducts(false))
   }, [])
 
