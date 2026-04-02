@@ -10,7 +10,26 @@ export async function GET() {
       .limit(50)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(data)
+
+    // Busca nomes dos responsáveis via profiles
+    const createdByIds = [...new Set((data ?? []).map((q: Record<string, string>) => q.created_by).filter(Boolean))]
+    let profileMap: Record<string, string> = {}
+    if (createdByIds.length > 0) {
+      const { data: profiles } = await supabaseServer
+        .from('profiles')
+        .select('id, nome')
+        .in('id', createdByIds)
+      if (profiles) {
+        profileMap = Object.fromEntries(profiles.map((p: { id: string; nome: string }) => [p.id, p.nome ?? '']))
+      }
+    }
+
+    const enriched = (data ?? []).map((q: Record<string, unknown>) => ({
+      ...q,
+      responsible_name: q.created_by ? (profileMap[q.created_by as string] ?? '') : '',
+    }))
+
+    return NextResponse.json(enriched)
   } catch {
     return NextResponse.json({ error: 'Erro interno ao buscar cotações.' }, { status: 500 })
   }

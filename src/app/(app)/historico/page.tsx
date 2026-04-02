@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 
-type QuotationStatus = 'approved' | 'sent' | 'draft' | 'lost'
-type StatusLabel = 'Aprovada' | 'Enviada' | 'Rascunho' | 'Perdida'
+type QuotationStatus = 'draft' | 'sent' | 'approved' | 'lost'
+type StatusLabel = 'Rascunho' | 'Enviada' | 'Aprovada' | 'Perdida'
 
 interface Quotation {
   id: string
@@ -23,6 +23,8 @@ interface Quotation {
   validity_days?: number
   created_at: string
   status: QuotationStatus
+  created_by?: string
+  responsible_name?: string
   items: Array<{
     description: string
     partNumber: string
@@ -53,21 +55,31 @@ interface Quotation {
   } | null
 }
 
+// Ordem: Rascunho → Enviada → Aprovada → Perdida
+const STATUS_ORDER: QuotationStatus[] = ['draft', 'sent', 'approved', 'lost']
+
 const STATUS_LABEL: Record<QuotationStatus, StatusLabel> = {
+  draft:    'Rascunho',
+  sent:     'Enviada',
   approved: 'Aprovada',
-  sent: 'Enviada',
-  draft: 'Rascunho',
-  lost: 'Perdida',
+  lost:     'Perdida',
+}
+
+const LABEL_TO_STATUS: Record<StatusLabel, QuotationStatus> = {
+  Rascunho: 'draft',
+  Enviada:  'sent',
+  Aprovada: 'approved',
+  Perdida:  'lost',
 }
 
 const STATUS_STYLES: Record<StatusLabel, { bg: string; color: string }> = {
-  Aprovada: { bg: '#EAF3DE', color: '#27500A' },
-  Enviada:  { bg: '#FAEEDA', color: '#633806' },
   Rascunho: { bg: '#E6F1FB', color: '#0C447C' },
+  Enviada:  { bg: '#FAEEDA', color: '#633806' },
+  Aprovada: { bg: '#EAF3DE', color: '#27500A' },
   Perdida:  { bg: '#F1EFE8', color: '#444441' },
 }
 
-const STATUS_OPTIONS: (StatusLabel | 'Todos')[] = ['Todos', 'Aprovada', 'Enviada', 'Rascunho', 'Perdida']
+const STATUS_OPTIONS: (StatusLabel | 'Todos')[] = ['Todos', 'Rascunho', 'Enviada', 'Aprovada', 'Perdida']
 
 function brl(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -75,21 +87,22 @@ function brl(value: number) {
 
 function formatDateBR(isoString: string): string {
   if (!isoString) return '—'
-  const d = new Date(isoString)
-  return d.toLocaleDateString('pt-BR')
+  return new Date(isoString).toLocaleDateString('pt-BR')
 }
 
 function getTotal(q: Quotation): number {
   if (q.totals?.grandTotalBrl) return Number(q.totals.grandTotalBrl)
-  if (Array.isArray(q.items)) {
-    return q.items.reduce((acc, item) => acc + Number(item.totalBrl ?? 0), 0)
-  }
+  if (Array.isArray(q.items)) return q.items.reduce((acc, item) => acc + Number(item.totalBrl ?? 0), 0)
   return 0
 }
 
 function getItemCount(q: Quotation): number {
-  if (Array.isArray(q.items)) return q.items.length
-  return 0
+  return Array.isArray(q.items) ? q.items.length : 0
+}
+
+function firstWord(name?: string): string {
+  if (!name) return '—'
+  return name.trim().split(/\s+/)[0]
 }
 
 export default function HistoricoPage() {
@@ -98,51 +111,84 @@ export default function HistoricoPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusLabel | 'Todos'>('Todos')
 
+  // Estado do dropdown de status inline
+  const [openStatusId, setOpenStatusId] = useState<string | null>(null)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     fetch('/api/quotations')
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setQuotations(data)
-      })
-      .catch(() => {
-        // Falha silenciosa — tabela ficará vazia
-      })
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setQuotations(data) })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenStatusId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  async function handleChangeStatus(q: Quotation, newStatus: QuotationStatus) {
+    if (newStatus === q.status) { setOpenStatusId(null); return }
+    setUpdatingId(q.id)
+    setOpenStatusId(null)
+    try {
+      const res = await fetch(`/api/quotations/${q.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        setQuotations(prev => prev.map(x => x.id === q.id ? { ...x, status: newStatus } : x))
+      } else {
+        const body = await res.json().catch(() => ({}))
+        alert(`Erro ao atualizar status: ${body.error ?? 'Erro desconhecido'}`)
+      }
+    } catch {
+      alert('Erro ao atualizar status.')
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   const filtered = useMemo(() => {
-    return quotations.filter((q) => {
-      const label = STATUS_LABEL[q.status] ?? q.status
+    return quotations.filter(q => {
+      const label = STATUS_LABEL[q.status] ?? 'Rascunho'
       const matchSearch =
         !search ||
         (q.quote_number ?? '').toLowerCase().includes(search.toLowerCase()) ||
         (q.client_company ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (q.client_contact ?? '').toLowerCase().includes(search.toLowerCase())
+        (q.responsible_name ?? '').toLowerCase().includes(search.toLowerCase())
       const matchStatus = statusFilter === 'Todos' || label === statusFilter
       return matchSearch && matchStatus
     })
   }, [quotations, search, statusFilter])
 
-  // Métricas calculadas dinamicamente com base nos dados reais
   const currentMonth = new Date().getMonth()
   const currentYear = new Date().getFullYear()
-  const thisMonthQuotations = quotations.filter((q) => {
+  const thisMonthQuotations = quotations.filter(q => {
     const d = new Date(q.created_at)
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear
   })
-  const approvedThisMonth = thisMonthQuotations.filter((q) => q.status === 'approved')
-  const uniqueClients = new Set(thisMonthQuotations.map((q) => q.client_company)).size
+  const approvedThisMonth = thisMonthQuotations.filter(q => q.status === 'approved')
+  const uniqueClients = new Set(thisMonthQuotations.map(q => q.client_company)).size
   const volumeTotal = thisMonthQuotations.reduce((a, q) => a + getTotal(q), 0)
-  const conversionRate =
-    thisMonthQuotations.length > 0
-      ? ((approvedThisMonth.length / thisMonthQuotations.length) * 100).toFixed(1)
-      : '0'
+  const conversionRate = thisMonthQuotations.length > 0
+    ? ((approvedThisMonth.length / thisMonthQuotations.length) * 100).toFixed(1)
+    : '0'
 
   const metricCards = [
-    { label: 'Cotações no mês', value: String(thisMonthQuotations.length), delta: `${approvedThisMonth.length} aprovadas` },
+    { label: 'Cotações no mês',   value: String(thisMonthQuotations.length), delta: `${approvedThisMonth.length} aprovadas` },
     { label: 'Clientes atendidos', value: String(uniqueClients), delta: 'empresas distintas' },
-    { label: 'Volume total', value: `R$ ${brl(volumeTotal)}`, delta: 'no mês atual' },
-    { label: 'Conversão', value: `${conversionRate}%`, delta: `${approvedThisMonth.length} aprovadas de ${thisMonthQuotations.length}` },
+    { label: 'Volume total',       value: `R$ ${brl(volumeTotal)}`, delta: 'no mês atual' },
+    { label: 'Conversão',          value: `${conversionRate}%`, delta: `${approvedThisMonth.length} aprovadas de ${thisMonthQuotations.length}` },
   ]
 
   async function handleDeletarCotacao(q: Quotation) {
@@ -157,9 +203,7 @@ export default function HistoricoPage() {
   }
 
   function handleEditarCotacao(q: Quotation) {
-    // Salva apenas o ID para edição — cotação page busca os dados do histórico
     localStorage.setItem('cotacao_editing_id', q.id)
-    // Salva itens no draft para restaurar produtos após carregar o banco
     localStorage.setItem('cotacao_draft_v2', JSON.stringify({
       savedItems: (q.items ?? []).map(item => ({
         partNumber: item.partNumber,
@@ -208,13 +252,13 @@ export default function HistoricoPage() {
         totalSImpBrl:       item.totalSImpBrl   ?? 0,
       })),
       totals: {
-        boxes:              q.totals?.boxes            ?? 0,
-        units:              q.totals?.units            ?? 0,
-        volumeM3:           0,
-        weightKg:           0,
-        grandTotalBrl:      q.totals?.grandTotalBrl    ?? 0,
-        grandTotalSIpiBrl:  q.totals?.grandTotalSIpiBrl ?? 0,
-        grandTotalSImpBrl:  q.totals?.grandTotalSImpBrl ?? 0,
+        boxes:             q.totals?.boxes            ?? 0,
+        units:             q.totals?.units            ?? 0,
+        volumeM3:          0,
+        weightKg:          0,
+        grandTotalBrl:     q.totals?.grandTotalBrl    ?? 0,
+        grandTotalSIpiBrl: q.totals?.grandTotalSIpiBrl ?? 0,
+        grandTotalSImpBrl: q.totals?.grandTotalSImpBrl ?? 0,
       },
     }
     localStorage.setItem('quotation_print_data', JSON.stringify(printData))
@@ -223,15 +267,14 @@ export default function HistoricoPage() {
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
-      {/* Título */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">Histórico de Cotações</h1>
         <p className="text-sm text-gray-500 mt-0.5">Visualize e gerencie todas as cotações emitidas</p>
       </div>
 
-      {/* ── Cards de métricas ─────────────────────────────────────────────── */}
+      {/* Cards de métricas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {metricCards.map((card) => (
+        {metricCards.map(card => (
           <div key={card.label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <p className="text-xs font-medium text-gray-500 mb-1">{card.label}</p>
             <p className="text-2xl font-bold text-gray-900">{card.value}</p>
@@ -240,21 +283,21 @@ export default function HistoricoPage() {
         ))}
       </div>
 
-      {/* ── Tabela ────────────────────────────────────────────────────────── */}
+      {/* Tabela */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         {/* Barra de filtros */}
         <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-[200px]">
             <input
               type="search"
-              placeholder="Buscar por número, empresa ou contato..."
+              placeholder="Buscar por número, empresa ou responsável..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition"
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {STATUS_OPTIONS.map((s) => (
+            {STATUS_OPTIONS.map(s => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
@@ -263,11 +306,7 @@ export default function HistoricoPage() {
                     ? 'border-transparent text-white'
                     : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
                 }`}
-                style={
-                  statusFilter === s
-                    ? { backgroundColor: '#0C3460', borderColor: '#0C3460' }
-                    : {}
-                }
+                style={statusFilter === s ? { backgroundColor: '#0C3460', borderColor: '#0C3460' } : {}}
               >
                 {s}
               </button>
@@ -280,14 +319,14 @@ export default function HistoricoPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Número</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Empresa</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Contato</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Data</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Número</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Empresa</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Responsável</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Data</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Itens</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Total BRL</th>
-                <th className="px-4 py-3 w-16" />
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Itens</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Total BRL</th>
+                <th className="px-4 py-3 w-20" />
               </tr>
             </thead>
             <tbody>
@@ -304,34 +343,75 @@ export default function HistoricoPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((q) => {
-                  const label: StatusLabel = STATUS_LABEL[q.status] ?? ('Rascunho' as StatusLabel)
-                  const style = STATUS_STYLES[label] ?? STATUS_STYLES['Rascunho']
+                filtered.map(q => {
+                  const label: StatusLabel = STATUS_LABEL[q.status] ?? 'Rascunho'
+                  const style = STATUS_STYLES[label]
+                  const isOpen = openStatusId === q.id
+                  const isUpdating = updatingId === q.id
+
                   return (
                     <tr key={q.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-700">{q.quote_number}</td>
-                      <td className="px-4 py-3 text-gray-900 font-medium">{q.client_company}</td>
-                      <td className="px-4 py-3 text-gray-600">{q.client_contact}</td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{formatDateBR(q.created_at)}</td>
+                      <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-gray-700">{q.quote_number}</td>
+                      <td className="px-4 py-3 text-center text-gray-900 font-medium">{q.client_company}</td>
+                      <td className="px-4 py-3 text-center text-gray-600 text-xs">{firstWord(q.responsible_name)}</td>
+                      <td className="px-4 py-3 text-center text-gray-500 text-xs">{formatDateBR(q.created_at)}</td>
+
+                      {/* Status com dropdown inline */}
                       <td className="px-4 py-3 text-center">
-                        <span
-                          className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                          style={{ backgroundColor: style.bg, color: style.color }}
-                        >
-                          {label}
-                        </span>
+                        <div className="relative inline-block" ref={isOpen ? dropdownRef : undefined}>
+                          <button
+                            onClick={() => setOpenStatusId(isOpen ? null : q.id)}
+                            disabled={isUpdating}
+                            title="Clique para alterar o status"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50"
+                            style={{ backgroundColor: style.bg, color: style.color }}
+                          >
+                            {isUpdating ? '...' : label}
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+
+                          {isOpen && (
+                            <div className="absolute z-50 mt-1 left-1/2 -translate-x-1/2 bg-white rounded-lg border border-gray-200 shadow-lg py-1 min-w-[120px]">
+                              {STATUS_ORDER.map(s => {
+                                const lbl = STATUS_LABEL[s]
+                                const st = STATUS_STYLES[lbl]
+                                return (
+                                  <button
+                                    key={s}
+                                    onClick={() => handleChangeStatus(q, s)}
+                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors"
+                                  >
+                                    <span
+                                      className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                                      style={{ backgroundColor: st.color }}
+                                    />
+                                    <span style={{ color: st.color }} className="font-medium">{lbl}</span>
+                                    {s === q.status && (
+                                      <svg className="w-3 h-3 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-600">{getItemCount(q)}</td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold text-gray-900">
+
+                      <td className="px-4 py-3 text-center text-gray-600">{getItemCount(q)}</td>
+                      <td className="px-4 py-3 text-center font-mono font-semibold text-gray-900">
                         R$ {brl(getTotal(q))}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-3">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleVerCotacao(q)}
                             className="text-blue-600 hover:text-blue-900 transition-colors text-xs font-semibold underline"
                           >
-                            Ver PDF
+                            PDF
                           </button>
                           <button
                             onClick={() => handleEditarCotacao(q)}
@@ -341,7 +421,7 @@ export default function HistoricoPage() {
                           </button>
                           <button
                             onClick={() => handleDeletarCotacao(q)}
-                            className="text-red-500 hover:text-red-700 transition-colors text-xs font-semibold underline"
+                            className="text-red-500 hover:text-red-700 transition-colors text-xs font-semibold"
                             title="Deletar cotação"
                           >
                             ✕
@@ -356,15 +436,13 @@ export default function HistoricoPage() {
           </table>
         </div>
 
-        {/* Rodapé */}
         {!loading && filtered.length > 0 && (
           <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
             <p className="text-xs text-gray-400">
               {filtered.length} {filtered.length === 1 ? 'cotação encontrada' : 'cotações encontradas'}
             </p>
             <p className="text-xs font-semibold text-gray-700 font-mono">
-              Total filtrado: R${' '}
-              {brl(filtered.reduce((a, q) => a + getTotal(q), 0))}
+              Total filtrado: R$ {brl(filtered.reduce((a, q) => a + getTotal(q), 0))}
             </p>
           </div>
         )}
