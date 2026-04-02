@@ -145,6 +145,17 @@ export default function HistoricoPage() {
     { label: 'Conversão', value: `${conversionRate}%`, delta: `${approvedThisMonth.length} aprovadas de ${thisMonthQuotations.length}` },
   ]
 
+  async function handleDeletarCotacao(q: Quotation) {
+    if (!confirm(`Deletar cotação ${q.quote_number} — ${q.client_company || '(sem empresa)'}?\n\nEsta ação não pode ser desfeita.`)) return
+    const res = await fetch(`/api/quotations/${q.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setQuotations(prev => prev.filter(x => x.id !== q.id))
+    } else {
+      const body = await res.json().catch(() => ({}))
+      alert(`Erro ao deletar: ${body.error ?? 'Erro desconhecido'}`)
+    }
+  }
+
   function handleEditarCotacao(q: Quotation) {
     const draft = {
       quotationNumber: q.quote_number,
@@ -339,6 +350,13 @@ export default function HistoricoPage() {
                             className="text-green-700 hover:text-green-900 transition-colors text-xs font-semibold underline"
                           >
                             Editar
+                          </button>
+                          <button
+                            onClick={() => handleDeletarCotacao(q)}
+                            className="text-red-500 hover:text-red-700 transition-colors text-xs font-semibold underline"
+                            title="Deletar cotação"
+                          >
+                            ✕
                           </button>
                         </div>
                       </td>

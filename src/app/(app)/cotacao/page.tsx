@@ -73,6 +73,35 @@ function generateQuotationNumber(seq: number): string {
   return `C${yy}${mm}${dd}-${String(seq).padStart(2, '0')}`
 }
 
+function todayPrefix(): string {
+  const now = new Date()
+  const yy = String(now.getFullYear()).slice(2)
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  return `C${yy}${mm}${dd}-`
+}
+
+// ─── Tipo mínimo para histórico ───────────────────────────────────────────────
+interface HistoricoItem {
+  id: string
+  quote_number: string
+  client_company?: string
+  client_contact?: string
+  client_email?: string
+  client_phone?: string
+  client_cnpj?: string
+  client_address?: string
+  client_city?: string
+  client_state?: string
+  client_cep?: string
+  supplier?: string
+  payment_terms?: string
+  delivery_days?: number
+  validity_days?: number
+  created_at: string
+  items?: Array<{ partNumber: string; qtyBoxes: number }> | null
+}
+
 function formatDateBR(date: Date): string {
   return date.toLocaleDateString('pt-BR')
 }
@@ -160,8 +189,12 @@ export default function CotacaoPage() {
   const draft = loadDraft()
 
   // Dados da cotação — restaura do rascunho se existir
-  const [quotationNumber] = useState(() => (draft?.quotationNumber as string) ?? generateQuotationNumber(1))
+  const [quotationNumber, setQuotationNumber] = useState<string>(() => (draft?.quotationNumber as string) ?? generateQuotationNumber(1))
   const [today] = useState(() => new Date())
+
+  // Histórico para dropdown e numeração sequencial
+  const [historico, setHistorico] = useState<HistoricoItem[]>([])
+  const [selectedHistoricoId, setSelectedHistoricoId] = useState<string>('')
   const [empresa, setEmpresa] = useState((draft?.empresa as string) ?? '')
   const [contato, setContato] = useState((draft?.contato as string) ?? '')
   const [emailContato, setEmailContato] = useState((draft?.emailContato as string) ?? '')
@@ -221,6 +254,30 @@ export default function CotacaoPage() {
     return list.slice(0, 20)
   }, [products, productSearch, filterTipo, filterVolume, filterCor])
 
+  // Buscar histórico + calcular próximo número sequencial do dia
+  useEffect(() => {
+    fetch('/api/quotations')
+      .then(r => r.json())
+      .then((data: HistoricoItem[]) => {
+        if (!Array.isArray(data)) return
+        setHistorico(data)
+        // Se não há rascunho de uma cotação existente, gera próximo número do dia
+        const currentDraft = loadDraft()
+        const existingQuoteNumber = currentDraft?.quotationNumber as string | undefined
+        const isEditing = existingQuoteNumber && data.some(q => q.quote_number === existingQuoteNumber)
+        if (!isEditing) {
+          const prefix = todayPrefix()
+          const seqs = data
+            .filter(q => q.quote_number?.startsWith(prefix))
+            .map(q => parseInt(q.quote_number?.split('-')[1] ?? '0', 10))
+            .filter(n => !isNaN(n))
+          const next = seqs.length > 0 ? Math.max(...seqs) + 1 : 1
+          setQuotationNumber(generateQuotationNumber(next))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   // Auto-salvar rascunho local sempre que dados mudarem (inclui itens)
   useEffect(() => {
     saveDraft({
@@ -242,6 +299,42 @@ export default function CotacaoPage() {
     }
     try { localStorage.removeItem(DRAFT_KEY) } catch {}
     window.location.reload()
+  }
+
+  function handleSelectHistorico(id: string) {
+    setSelectedHistoricoId(id)
+    if (!id) { handleNovaCotacao(); return }
+    const q = historico.find(h => h.id === id)
+    if (!q) return
+    setQuotationNumber(q.quote_number)
+    setEmpresa(q.client_company ?? '')
+    setContato(q.client_contact ?? '')
+    setEmailContato(q.client_email ?? '')
+    setTelefone(q.client_phone ?? '')
+    setCnpj(q.client_cnpj ?? '')
+    setEndereco(q.client_address ?? '')
+    setEstado(q.client_state ?? '')
+    setCep(q.client_cep ?? '')
+    setPrazoValidade(String(q.validity_days ?? 30))
+    setPagamento(q.payment_terms ?? '50% no ato do pedido + 50% na entrega')
+    setPrazo(String(q.delivery_days ?? 90))
+    setFornecedor(q.supplier ?? 'Four Star')
+    // Carregar cidades do estado restaurado
+    if (q.client_state) loadCidades(q.client_state).then(() => {
+      setCidade(q.client_city ?? '')
+    })
+    else setCidade(q.client_city ?? '')
+    // Restaurar itens da cotação
+    const fornecedorAtual = q.supplier ?? 'Four Star'
+    const restored: LineItem[] = []
+    for (const si of (q.items ?? [])) {
+      const product = products.find(p => p.partNumber === si.partNumber)
+      if (product) {
+        const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
+        restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, breakdown })
+      }
+    }
+    setLineItems(restored)
   }
 
   // Fechar dropdown ao clicar fora
@@ -515,10 +608,36 @@ export default function CotacaoPage() {
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
       {/* Título da página */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Nova Cotação</h1>
+      <div className="flex items-center justify-between gap-4">
+        <div className="shrink-0">
+          <h1 className="text-xl font-bold text-gray-900">
+            {selectedHistoricoId ? 'Editando Cotação' : 'Nova Cotação'}
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">Preencha os dados abaixo para gerar uma proposta comercial</p>
+        </div>
+        {/* Dropdown — carregar cotação do histórico */}
+        <div className="flex items-center gap-2 flex-1 max-w-lg">
+          <label className="text-xs font-medium text-gray-500 whitespace-nowrap">Carregar do histórico:</label>
+          <select
+            value={selectedHistoricoId}
+            onChange={(e) => handleSelectHistorico(e.target.value)}
+            className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition"
+          >
+            <option value="">— Nova cotação —</option>
+            {historico.map(q => (
+              <option key={q.id} value={q.id}>
+                {q.quote_number} · {q.client_company || '(sem empresa)'}
+              </option>
+            ))}
+          </select>
+          {selectedHistoricoId && (
+            <button
+              onClick={handleNovaCotacao}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap"
+            >
+              + Nova
+            </button>
+          )}
         </div>
         <span
           className="text-xs font-mono font-semibold px-3 py-1 rounded-full"
@@ -530,8 +649,13 @@ export default function CotacaoPage() {
 
       {/* ── Dados da Cotação ─────────────────────────────────────────────── */}
       <section className={cardClass}>
-        <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">
-          Dados da Cotação
+        <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100 flex items-center justify-between">
+          <span>Dados da Cotação</span>
+          {selectedHistoricoId && (
+            <span className="text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+              Editando {quotationNumber}
+            </span>
+          )}
         </h2>
         {/* Linha 1: Número (25%), Data (25%), Empresa (50%) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '16px' }} className="mb-4">
