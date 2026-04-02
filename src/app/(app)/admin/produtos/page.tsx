@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useUserRole } from '@/hooks/useUserRole'
 
 // ─── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ function getDisplayPrices(p: DbProduct, fornecedor: string): DisplayPrices {
 // ─── Componente principal ───────────────────────────────────────────────────────
 
 export default function AdminProdutosPage() {
+  const { isAdmin } = useUserRole()
   const [products, setProducts] = useState<DbProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -413,37 +415,33 @@ export default function AdminProdutosPage() {
 
           <div className="flex-1" />
 
-          {/* Exportar */}
-          <button
-            onClick={handleExportar}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
-            style={{ borderColor: '#0C3460', color: '#0C3460' }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Exportar
-          </button>
-
-          {/* Importar */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importLoading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
-            style={{ backgroundColor: '#0C3460' }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
-            </svg>
-            {importLoading ? 'Lendo...' : 'Importar Excel'}
-          </button>
+          {/* Exportar e Importar — apenas admin */}
+          {isAdmin && (
+            <>
+              <button
+                onClick={handleExportar}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
+                style={{ borderColor: '#0C3460', color: '#0C3460' }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Exportar
+              </button>
+              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
+                style={{ backgroundColor: '#0C3460' }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+                {importLoading ? 'Lendo...' : 'Importar Excel'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

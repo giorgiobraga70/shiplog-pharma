@@ -13,10 +13,21 @@ function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUserEmail(data.user?.email ?? null)
+      if (!data.user) return
+      supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
+        .then(({ data: profile }) => {
+          setIsAdmin(profile?.role === 'admin')
+        })
+        .catch(() => {})
     })
   }, [])
 
@@ -91,9 +102,8 @@ function Navbar() {
           {navLink('/cotacao', 'Cotação')}
           {navLink('/historico', 'Histórico')}
           {navLink('/admin/clientes', 'Clientes')}
-          {navLink('/admin/entrada', 'Setup')}
           {navLink('/admin/produtos', 'Produtos')}
-          {navLink('/admin/usuarios', 'Usuários')}
+          {isAdmin && navLink('/admin/usuarios', 'Usuários')}
         </div>
       </div>
     </header>

@@ -219,6 +219,10 @@ export default function CotacaoPage() {
   const [fornecedor, setFornecedor] = useState((draft?.fornecedor as string) ?? 'Four Star')
   const [prazoValidade, setPrazoValidade] = useState((draft?.prazoValidade as string) ?? '30')
 
+  // Clientes cadastrados
+  const [clientes, setClientes] = useState<Array<{ id: string; empresa: string; contato?: string; email?: string; telefone?: string; cnpj?: string; endereco?: string; cidade?: string; estado?: string; cep?: string }>>([])
+  const [savingCliente, setSavingCliente] = useState(false)
+
   // Filtros do combobox de produto
   const [filterTipo, setFilterTipo] = useState('')
   const [filterVolume, setFilterVolume] = useState('')
@@ -263,6 +267,14 @@ export default function CotacaoPage() {
     }
     return list
   }, [products, productSearch, filterTipo, filterVolume, filterCor])
+
+  // Buscar clientes cadastrados para o dropdown de Empresa
+  useEffect(() => {
+    fetch('/api/clients')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setClientes(data) })
+      .catch(() => {})
+  }, [])
 
   // Buscar histórico + calcular próximo número / restaurar edição
   useEffect(() => {
@@ -333,6 +345,45 @@ export default function CotacaoPage() {
     }
     try { localStorage.removeItem(DRAFT_KEY) } catch {}
     window.location.reload()
+  }
+
+  function handleSelectCliente(id: string) {
+    const c = clientes.find(x => x.id === id)
+    if (!c) return
+    setEmpresa(c.empresa ?? '')
+    setContato(c.contato ?? '')
+    setEmailContato(c.email ?? '')
+    setTelefone(c.telefone ?? '')
+    setCnpj(c.cnpj ?? '')
+    setEndereco(c.endereco ?? '')
+    setCep(c.cep ?? '')
+    setEstado(c.estado ?? '')
+    if (c.estado) {
+      loadCidades(c.estado).then(() => setCidade(c.cidade ?? ''))
+    } else {
+      setCidade(c.cidade ?? '')
+    }
+  }
+
+  async function handleSalvarCliente() {
+    if (!empresa.trim()) { alert('Preencha o campo Empresa antes de salvar o cliente.'); return }
+    setSavingCliente(true)
+    try {
+      // Verifica se o cliente já existe
+      const existing = clientes.find(c => c.empresa.toLowerCase() === empresa.trim().toLowerCase())
+      const payload = { empresa: empresa.trim(), contato, email: emailContato, telefone, cnpj, endereco, cidade, estado, cep }
+      const url = existing ? `/api/clients/${existing.id}` : '/api/clients'
+      const method = existing ? 'PATCH' : 'POST'
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const data = await res.json()
+      if (!res.ok) { alert(`Erro ao salvar cliente: ${data.error}`); return }
+      if (existing) {
+        setClientes(prev => prev.map(c => c.id === existing.id ? { ...c, ...payload } : c))
+      } else {
+        setClientes(prev => [...prev, data])
+      }
+      alert(`Cliente "${empresa}" ${existing ? 'atualizado' : 'salvo'} com sucesso!`)
+    } catch { alert('Erro ao salvar cliente.') } finally { setSavingCliente(false) }
   }
 
   function handleSelectHistorico(id: string) {
@@ -725,8 +776,28 @@ export default function CotacaoPage() {
           </div>
           <div>
             <label className={labelClass}>Empresa</label>
-            <input type="text" value={empresa} onChange={(e) => setEmpresa(e.target.value)}
-              placeholder="Nome da empresa" className={inputClass} />
+            <div className="flex gap-2">
+              <select
+                value={clientes.find(c => c.empresa === empresa)?.id ?? ''}
+                onChange={e => {
+                  if (!e.target.value) return
+                  handleSelectCliente(e.target.value)
+                }}
+                className={inputClass}
+                style={{ flex: 1 }}
+              >
+                <option value="">— Selecionar cliente —</option>
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.empresa}</option>)}
+              </select>
+              <input
+                type="text"
+                value={empresa}
+                onChange={e => setEmpresa(e.target.value)}
+                placeholder="Ou digite nova empresa"
+                className={inputClass}
+                style={{ flex: 1 }}
+              />
+            </div>
           </div>
         </div>
         {/* Linha 2: Contato (30%), E-mail (30%), Telefone (20%), CNPJ (20%) */}
@@ -828,6 +899,22 @@ export default function CotacaoPage() {
               <option value="Munan">Munan</option>
             </select>
           </div>
+        </div>
+
+        {/* Botão Salvar Cliente */}
+        <div className="flex justify-end mt-3">
+          <button
+            onClick={handleSalvarCliente}
+            disabled={savingCliente}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-green-700 hover:text-white disabled:opacity-60"
+            style={{ borderColor: '#15803d', color: '#15803d' }}
+            title="Salva ou atualiza este cliente no banco de dados"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            {savingCliente ? 'Salvando...' : 'Salvar Cliente'}
+          </button>
         </div>
       </section>
 

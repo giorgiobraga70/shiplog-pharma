@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useUserRole } from '@/hooks/useUserRole'
 
 interface AppUser {
   id: string
@@ -15,8 +17,14 @@ interface AppUser {
 const EMPTY_FORM = { email: '', password: '', nome: '', telefone: '', role: 'user' as 'admin' | 'user' }
 
 export default function UsuariosPage() {
+  const router = useRouter()
+  const { isAdmin, loading: roleLoading } = useUserRole()
   const [users, setUsers] = useState<AppUser[]>([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!roleLoading && !isAdmin) router.replace('/cotacao')
+  }, [isAdmin, roleLoading, router])
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
