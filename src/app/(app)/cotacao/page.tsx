@@ -189,6 +189,15 @@ function loadDraft(): Record<string, unknown> | null {
 export default function CotacaoPage() {
   const draft = loadDraft()
 
+  // Lê o ID de edição sincronamente no mount (antes de qualquer render)
+  const [editingIdOnLoad] = useState<string>(() => {
+    try {
+      const id = localStorage.getItem(EDIT_KEY)
+      if (id) localStorage.removeItem(EDIT_KEY)
+      return id ?? ''
+    } catch { return '' }
+  })
+
   // Número de cotação — NUNCA restaurado do draft; sempre calculado do histórico
   const [quotationNumber, setQuotationNumber] = useState<string>(() => generateQuotationNumber(1))
   const [today] = useState(() => new Date())
@@ -263,11 +272,9 @@ export default function CotacaoPage() {
         if (!Array.isArray(data)) return
         setHistorico(data)
 
-        // Verificar se veio do botão "Editar" do histórico
-        const editingId = localStorage.getItem(EDIT_KEY)
-        if (editingId) {
-          localStorage.removeItem(EDIT_KEY)
-          const q = data.find(h => h.id === editingId)
+        if (editingIdOnLoad) {
+          // Veio do botão "Editar" do histórico — popula todos os campos
+          const q = data.find(h => h.id === editingIdOnLoad)
           if (q) {
             setSelectedHistoricoId(q.id)
             setQuotationNumber(q.quote_number)
@@ -283,8 +290,11 @@ export default function CotacaoPage() {
             setPagamento(q.payment_terms ?? '50% no ato do pedido + 50% na entrega')
             setPrazo(String(q.delivery_days ?? 90))
             setFornecedor(q.supplier ?? 'Four Star')
-            if (q.client_state) loadCidades(q.client_state).then(() => setCidade(q.client_city ?? ''))
-            else setCidade(q.client_city ?? '')
+            if (q.client_state) {
+              loadCidades(q.client_state).then(() => setCidade(q.client_city ?? ''))
+            } else {
+              setCidade(q.client_city ?? '')
+            }
             return // não recalcula número sequencial
           }
         }
@@ -384,7 +394,7 @@ export default function CotacaoPage() {
     }
   }, [lineItems])
 
-  // Carregar produtos do banco e restaurar itens do rascunho
+  // Carregar produtos do banco
   useEffect(() => {
     fetch('/api/products')
       .then((r) => r.json())
@@ -396,27 +406,53 @@ export default function CotacaoPage() {
             setSelectedProductId(mapped[0].id)
             setProductSearch(`${mapped[0].description} — ${mapped[0].partNumber}`)
           }
-
-          // Restaurar itens salvos no rascunho
-          const saved = loadDraft()
-          const savedItems = saved?.savedItems as Array<{ partNumber: string; qtyBoxes: number }> | undefined
-          if (savedItems && savedItems.length > 0) {
-            const fornecedorAtual = (saved?.fornecedor as string) ?? 'Four Star'
-            const restored: LineItem[] = []
-            for (const si of savedItems) {
-              const product = mapped.find(p => p.partNumber === si.partNumber)
-              if (product) {
-                const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
-                restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, breakdown })
-              }
-            }
-            if (restored.length > 0) setLineItems(restored)
-          }
         }
       })
       .catch(() => {})
       .finally(() => setLoadingProducts(false))
   }, [])
+
+  // Restaurar itens quando AMBOS products e historico estiverem carregados
+  const itemsRestoredRef = useRef(false)
+  useEffect(() => {
+    if (products.length === 0 || itemsRestoredRef.current) return
+
+    if (editingIdOnLoad) {
+      // Editar vindo do histórico — espera o historico estar carregado
+      if (historico.length === 0) return
+      const q = historico.find(h => h.id === editingIdOnLoad)
+      if (!q?.items?.length) { itemsRestoredRef.current = true; return }
+      const fornecedorAtual = q.supplier ?? 'Four Star'
+      const restored: LineItem[] = []
+      for (const si of q.items) {
+        const product = products.find(p => p.partNumber === si.partNumber)
+        if (product) {
+          const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
+          restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, breakdown })
+        }
+      }
+      if (restored.length > 0) setLineItems(restored)
+      itemsRestoredRef.current = true
+    } else {
+      // Rascunho normal — restaura do localStorage
+      const saved = loadDraft()
+      const savedItems = saved?.savedItems as Array<{ partNumber: string; qtyBoxes: number }> | undefined
+      if (savedItems && savedItems.length > 0) {
+        const fornecedorAtual = (saved?.fornecedor as string) ?? 'Four Star'
+        const restored: LineItem[] = []
+        for (const si of savedItems) {
+          const product = products.find(p => p.partNumber === si.partNumber)
+          if (product) {
+            const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
+            restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, breakdown })
+          }
+        }
+        if (restored.length > 0) setLineItems(restored)
+      }
+      itemsRestoredRef.current = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, historico])
 
   async function loadCidades(uf: string) {
     if (!uf) { setCidades([]); return }
