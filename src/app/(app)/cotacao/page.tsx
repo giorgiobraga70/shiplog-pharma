@@ -23,6 +23,23 @@ interface StoredPrices {
 
 type ExtProduct = Product & StoredPrices
 
+function applyDiscount(bd: PricingBreakdown, discount: number): PricingBreakdown {
+  if (discount === 0) return bd
+  const m = 1 + discount / 100
+  return {
+    ...bd,
+    finalPriceUnit:     bd.finalPriceUnit     * m,
+    finalPriceBox:      bd.finalPriceBox      * m,
+    totalBrl:           bd.totalBrl           * m,
+    finalPriceUnitSIpi: bd.finalPriceUnitSIpi * m,
+    finalPriceBoxSIpi:  bd.finalPriceBoxSIpi  * m,
+    totalSIpiBrl:       bd.totalSIpiBrl       * m,
+    finalPriceUnitSImp: bd.finalPriceUnitSImp * m,
+    finalPriceBoxSImp:  bd.finalPriceBoxSImp  * m,
+    totalSImpBrl:       bd.totalSImpBrl       * m,
+  }
+}
+
 function buildBreakdown(product: ExtProduct, qtyBoxes: number, fornecedor: string): PricingBreakdown {
   const m = fornecedor === 'Munan'
   const unCI  = m ? (product.un_cimp_cipi_munan   ?? 0) : (product.un_cimp_cipi_fourstar   ?? 0)
@@ -170,6 +187,7 @@ interface LineItem {
   id: string
   product: ExtProduct
   qtyBoxes: number
+  discount: number
   breakdown: PricingBreakdown
 }
 
@@ -268,6 +286,8 @@ export default function CotacaoPage() {
   // Produtos selecionados
   const [selectedProductId, setSelectedProductId] = useState('')
   const [qtyBoxesInput, setQtyBoxesInput] = useState('')
+  const [qtyPiecesInput, setQtyPiecesInput] = useState('')
+  const [discountInput, setDiscountInput] = useState('')
   const [lineItems, setLineItems] = useState<LineItem[]>([])
 
   // Combobox de busca de produto
@@ -446,7 +466,7 @@ export default function CotacaoPage() {
       const product = products.find(p => p.partNumber === si.partNumber)
       if (product) {
         const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
-        restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, breakdown })
+        restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
       }
     }
     setLineItems(restored)
@@ -509,7 +529,7 @@ export default function CotacaoPage() {
         const product = products.find(p => p.partNumber === si.partNumber)
         if (product) {
           const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
-          restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, breakdown })
+          restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
         }
       }
       if (restored.length > 0) setLineItems(restored)
@@ -525,7 +545,7 @@ export default function CotacaoPage() {
           const product = products.find(p => p.partNumber === si.partNumber)
           if (product) {
             const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
-            restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, breakdown })
+            restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
           }
         }
         if (restored.length > 0) setLineItems(restored)
@@ -571,6 +591,28 @@ export default function CotacaoPage() {
     loadCidades(uf)
   }
 
+  function handleQtyPiecesChange(value: string) {
+    setQtyPiecesInput(value)
+    const pcs = parseInt(value, 10)
+    if (!isNaN(pcs) && pcs > 0) {
+      const product = products.find(p => p.id === selectedProductId)
+      if (product) setQtyBoxesInput(String(Math.ceil(pcs / product.pcsPerBox)))
+    } else {
+      setQtyBoxesInput('')
+    }
+  }
+
+  function handleQtyBoxesChange(value: string) {
+    setQtyBoxesInput(value)
+    const boxes = parseInt(value, 10)
+    if (!isNaN(boxes) && boxes > 0) {
+      const product = products.find(p => p.id === selectedProductId)
+      if (product) setQtyPiecesInput(String(boxes * product.pcsPerBox))
+    } else {
+      setQtyPiecesInput('')
+    }
+  }
+
   function handleAddItem() {
     const qty = parseInt(qtyBoxesInput, 10)
     if (!qty || qty <= 0) return
@@ -578,13 +620,17 @@ export default function CotacaoPage() {
     const product = products.find((p) => p.id === selectedProductId)
     if (!product) return
 
-    const breakdown = buildBreakdown(product, qty, fornecedor)
+    const discount = parseFloat(discountInput.replace(',', '.')) || 0
+    const rawBreakdown = buildBreakdown(product, qty, fornecedor)
+    const breakdown = applyDiscount(rawBreakdown, discount)
 
     setLineItems((prev) => [
       ...prev,
-      { id: `${Date.now()}`, product, qtyBoxes: qty, breakdown },
+      { id: `${Date.now()}`, product, qtyBoxes: qty, discount, breakdown },
     ])
     setQtyBoxesInput('')
+    setQtyPiecesInput('')
+    setDiscountInput('')
   }
 
   function handleRemoveItem(id: string) {
@@ -1062,6 +1108,9 @@ export default function CotacaoPage() {
                         setSelectedProductId(p.id)
                         setProductSearch(`${p.description} — ${p.partNumber}`)
                         setShowDropdown(false)
+                        // Recalcula peças se já havia qtd de caixas
+                        const boxes = parseInt(qtyBoxesInput, 10)
+                        if (!isNaN(boxes) && boxes > 0) setQtyPiecesInput(String(boxes * p.pcsPerBox))
                       }}
                       style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px',
                         borderBottom: '1px solid #f1f5f9',
@@ -1080,16 +1129,40 @@ export default function CotacaoPage() {
               )}
             </div>
           </div>
-          <div className="w-32">
-            <label className={labelClass}>Qtd. (caixas)</label>
+          <div className="w-28">
+            <label className={labelClass}>Quant. peças</label>
+            <input
+              type="number"
+              min="1"
+              value={qtyPiecesInput}
+              onChange={e => handleQtyPiecesChange(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddItem()}
+              placeholder="0"
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+          <div className="w-28">
+            <label className={labelClass}>Quant. caixas</label>
             <input
               type="number"
               min="1"
               value={qtyBoxesInput}
-              onChange={(e) => setQtyBoxesInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
+              onChange={e => handleQtyBoxesChange(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddItem()}
               placeholder="0"
               className={`${inputClass} font-mono`}
+            />
+          </div>
+          <div className="w-24">
+            <label className={labelClass}>Desconto %</label>
+            <input
+              type="text"
+              value={discountInput}
+              onChange={e => setDiscountInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddItem()}
+              placeholder="0"
+              className={`${inputClass} font-mono`}
+              title="Ex: -10 reduz 10%, +5 aumenta 5%"
             />
           </div>
           <button
@@ -1114,6 +1187,7 @@ export default function CotacaoPage() {
                 <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Unidades</th>
                 <th className="px-3 py-2.5 text-center font-semibold text-gray-600">m³</th>
                 <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Kg</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Desc.%</th>
                 <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Unit BRL</th>
                 <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Cx BRL</th>
                 <th className="px-3 py-2.5 text-center font-semibold text-gray-600">Total BRL</th>
@@ -1123,7 +1197,7 @@ export default function CotacaoPage() {
             <tbody>
               {lineItems.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-3 py-8 text-center text-gray-400 text-xs">
+                  <td colSpan={12} className="px-3 py-8 text-center text-gray-400 text-xs">
                     Nenhum produto adicionado. Selecione um produto e a quantidade acima.
                   </td>
                 </tr>
@@ -1137,6 +1211,15 @@ export default function CotacaoPage() {
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{li.breakdown.qtyUnits.toLocaleString('pt-BR')}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{num(li.breakdown.volumeM3, 3)}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{num(li.breakdown.weightKg, 1)}</td>
+                    <td className="px-3 py-2.5 text-center font-mono text-sm">
+                      {li.discount !== 0 ? (
+                        <span style={{ color: li.discount < 0 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+                          {li.discount > 0 ? '+' : ''}{li.discount}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{brl(li.breakdown.finalPriceUnit)}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{brl(li.breakdown.finalPriceBox)}</td>
                     <td className="px-3 py-2.5 text-right font-mono font-semibold text-gray-900">{brl(li.breakdown.totalBrl)}</td>
@@ -1164,6 +1247,7 @@ export default function CotacaoPage() {
                   <td className="px-3 py-2.5 text-right font-mono font-semibold text-gray-800">{totals.units.toLocaleString('pt-BR')}</td>
                   <td className="px-3 py-2.5 text-right font-mono font-semibold text-gray-800">{num(totals.volume, 3)}</td>
                   <td className="px-3 py-2.5 text-right font-mono font-semibold text-gray-800">{num(totals.weight, 1)}</td>
+                  <td className="px-3 py-2.5" />
                   <td className="px-3 py-2.5" />
                   <td className="px-3 py-2.5" />
                   <td className="px-3 py-2.5 text-right font-mono font-bold text-gray-900" style={{ color: '#0C3460' }}>
