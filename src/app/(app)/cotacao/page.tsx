@@ -173,6 +173,7 @@ interface LineItem {
 }
 
 const DRAFT_KEY = 'cotacao_draft_v2'
+const EDIT_KEY  = 'cotacao_editing_id'
 
 function saveDraft(draft: Record<string, unknown>) {
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)) } catch {}
@@ -254,15 +255,41 @@ export default function CotacaoPage() {
     return list
   }, [products, productSearch, filterTipo, filterVolume, filterCor])
 
-  // Buscar histórico + calcular próximo número sequencial do dia
+  // Buscar histórico + calcular próximo número / restaurar edição
   useEffect(() => {
     fetch('/api/quotations')
       .then(r => r.json())
       .then((data: HistoricoItem[]) => {
         if (!Array.isArray(data)) return
         setHistorico(data)
-        // Sempre calcula o próximo número do dia para nova cotação
-        // (handleSelectHistorico substitui quando o usuário escolher uma do histórico)
+
+        // Verificar se veio do botão "Editar" do histórico
+        const editingId = localStorage.getItem(EDIT_KEY)
+        if (editingId) {
+          localStorage.removeItem(EDIT_KEY)
+          const q = data.find(h => h.id === editingId)
+          if (q) {
+            setSelectedHistoricoId(q.id)
+            setQuotationNumber(q.quote_number)
+            setEmpresa(q.client_company ?? '')
+            setContato(q.client_contact ?? '')
+            setEmailContato(q.client_email ?? '')
+            setTelefone(q.client_phone ?? '')
+            setCnpj(q.client_cnpj ?? '')
+            setEndereco(q.client_address ?? '')
+            setEstado(q.client_state ?? '')
+            setCep(q.client_cep ?? '')
+            setPrazoValidade(String(q.validity_days ?? 30))
+            setPagamento(q.payment_terms ?? '50% no ato do pedido + 50% na entrega')
+            setPrazo(String(q.delivery_days ?? 90))
+            setFornecedor(q.supplier ?? 'Four Star')
+            if (q.client_state) loadCidades(q.client_state).then(() => setCidade(q.client_city ?? ''))
+            else setCidade(q.client_city ?? '')
+            return // não recalcula número sequencial
+          }
+        }
+
+        // Nova cotação — calcula próximo número do dia
         const prefix = todayPrefix()
         const seqs = data
           .filter(q => q.quote_number?.startsWith(prefix))
@@ -272,6 +299,7 @@ export default function CotacaoPage() {
         setQuotationNumber(generateQuotationNumber(next))
       })
       .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Auto-salvar rascunho local (quotationNumber NÃO é salvo — sempre recalculado)
@@ -611,13 +639,13 @@ export default function CotacaoPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">Preencha os dados abaixo para gerar uma proposta comercial</p>
         </div>
-        {/* Dropdown — carregar cotação do histórico */}
-        <div className="flex items-center gap-2 flex-1 max-w-lg">
+        {/* Dropdown — carregar cotação do histórico — canto direito */}
+        <div className="flex items-center gap-2 ml-auto">
           <label className="text-xs font-medium text-gray-500 whitespace-nowrap">Carregar do histórico:</label>
           <select
             value={selectedHistoricoId}
             onChange={(e) => handleSelectHistorico(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition"
+            className="w-72 px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition"
           >
             <option value="">— Nova cotação —</option>
             {historico.map(q => (
@@ -635,12 +663,6 @@ export default function CotacaoPage() {
             </button>
           )}
         </div>
-        <span
-          className="text-xs font-mono font-semibold px-3 py-1 rounded-full"
-          style={{ backgroundColor: '#E6F1FB', color: '#0C447C' }}
-        >
-          {quotationNumber}
-        </span>
       </div>
 
       {/* ── Dados da Cotação ─────────────────────────────────────────────── */}
@@ -978,7 +1000,7 @@ export default function CotacaoPage() {
           style={{ backgroundColor: '#0F6E56' }}
           onClick={handleSalvarRascunho}
         >
-          Salvar Rascunho
+          Salvar
         </button>
         <button
           className="px-5 py-2.5 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90"

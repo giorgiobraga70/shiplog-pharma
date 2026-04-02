@@ -157,27 +157,15 @@ export default function HistoricoPage() {
   }
 
   function handleEditarCotacao(q: Quotation) {
-    const draft = {
-      quotationNumber: q.quote_number,
-      empresa:         q.client_company  ?? '',
-      contato:         q.client_contact  ?? '',
-      emailContato:    q.client_email    ?? '',
-      telefone:        q.client_phone    ?? '',
-      cnpj:            q.client_cnpj     ?? '',
-      endereco:        q.client_address  ?? '',
-      cidade:          q.client_city     ?? '',
-      estado:          q.client_state    ?? '',
-      cep:             q.client_cep      ?? '',
-      fornecedor:      q.supplier        ?? 'Four Star',
-      prazoValidade:   String(q.validity_days  ?? 30),
-      pagamento:       q.payment_terms   ?? '50% no ato do pedido + 50% na entrega',
-      prazo:           String(q.delivery_days  ?? 90),
+    // Salva apenas o ID para edição — cotação page busca os dados do histórico
+    localStorage.setItem('cotacao_editing_id', q.id)
+    // Salva itens no draft para restaurar produtos após carregar o banco
+    localStorage.setItem('cotacao_draft_v2', JSON.stringify({
       savedItems: (q.items ?? []).map(item => ({
         partNumber: item.partNumber,
         qtyBoxes:   item.qtyBoxes,
       })),
-    }
-    localStorage.setItem('cotacao_draft_v2', JSON.stringify(draft))
+    }))
     window.location.href = '/cotacao'
   }
 
