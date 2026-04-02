@@ -50,8 +50,8 @@ export async function POST(request: Request) {
     const fullPayload = {
       quote_number,
       client_company,
-      client_email,
-      client_contact,
+      client_email:   client_email   ?? null,
+      client_contact: client_contact ?? null,
       client_phone:   client_phone   ?? null,
       client_cnpj:    client_cnpj    ?? null,
       client_address: client_address ?? null,
@@ -59,14 +59,14 @@ export async function POST(request: Request) {
       client_state:   client_state   ?? null,
       client_cep:     client_cep     ?? null,
       supplier:       supplier       ?? null,
-      usd_brl,
-      payment_terms,
-      delivery_days,
+      usd_brl_rate:   usd_brl        ?? 5.25,
+      payment_terms:  payment_terms  ?? null,
+      delivery_days:  delivery_days  ?? null,
       destination_port,
-      validity_days,
-      items,
-      totals,
-      status,
+      validity_days:  validity_days  ?? null,
+      items:          items          ?? [],
+      totals:         totals         ?? {},
+      status:         status         ?? 'draft',
     }
 
     const { data, error } = await supabaseServer
@@ -83,14 +83,14 @@ export async function POST(request: Request) {
       client_company,
       client_email:   client_email   ?? null,
       client_contact: client_contact ?? null,
-      usd_brl:        usd_brl        ?? 5.25,
+      usd_brl_rate:   usd_brl        ?? 5.25,
       payment_terms:  payment_terms  ?? null,
-      delivery_days:  delivery_days  ?? 90,
+      delivery_days:  delivery_days  ?? null,
       destination_port,
-      validity_days:  validity_days  ?? 30,
+      validity_days:  validity_days  ?? null,
       items:          items          ?? [],
       totals:         totals         ?? {},
-      status,
+      status:         status         ?? 'draft',
     }
     const { data: data2, error: error2 } = await supabaseServer
       .from('quotations')
