@@ -69,15 +69,16 @@ export async function POST(request: Request) {
       status:         status         ?? 'draft',
     }
 
+    // Usar upsert para evitar erro de duplicate key no quote_number
     const { data, error } = await supabaseServer
       .from('quotations')
-      .insert([fullPayload])
+      .upsert([fullPayload], { onConflict: 'quote_number' })
       .select()
       .single()
 
     if (!error) return NextResponse.json(data, { status: 201 })
 
-    // ── Fallback: qualquer erro no insert completo → tenta só colunas originais ─
+    // ── Fallback: qualquer erro → tenta só colunas originais ─────────────────
     const basePayload = {
       quote_number,
       client_company,
@@ -94,12 +95,11 @@ export async function POST(request: Request) {
     }
     const { data: data2, error: error2 } = await supabaseServer
       .from('quotations')
-      .insert([basePayload])
+      .upsert([basePayload], { onConflict: 'quote_number' })
       .select()
       .single()
 
     if (error2) {
-      // Retorna ambos os erros para facilitar debug
       return NextResponse.json({
         error: `${error2.message} (fallback após: ${error.message})`
       }, { status: 500 })

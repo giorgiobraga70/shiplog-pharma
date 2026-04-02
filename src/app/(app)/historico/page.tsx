@@ -10,10 +10,47 @@ interface Quotation {
   quote_number: string
   client_company: string
   client_contact: string
+  client_email?: string
+  client_phone?: string
+  client_cnpj?: string
+  client_address?: string
+  client_city?: string
+  client_state?: string
+  client_cep?: string
+  supplier?: string
+  payment_terms?: string
+  delivery_days?: number
+  validity_days?: number
   created_at: string
   status: QuotationStatus
-  items: { totalBrl: number }[] | null
-  totals: { grandTotalBrl: number } | null
+  items: Array<{
+    description: string
+    partNumber: string
+    ncmCode?: string
+    volumeMl?: number | null
+    tamanho?: string | null
+    pcsPerBox: number
+    qtyBoxes: number
+    qtyUnits: number
+    volumeM3?: number
+    weightKg?: number
+    finalPriceUnit: number
+    finalPriceBox: number
+    finalPriceUnitSIpi?: number
+    finalPriceBoxSIpi?: number
+    finalPriceUnitSImp?: number
+    finalPriceBoxSImp?: number
+    totalBrl: number
+    totalSIpiBrl?: number
+    totalSImpBrl?: number
+  }> | null
+  totals: {
+    grandTotalBrl: number
+    grandTotalSIpiBrl?: number
+    grandTotalSImpBrl?: number
+    boxes?: number
+    units?: number
+  } | null
 }
 
 const STATUS_LABEL: Record<QuotationStatus, StatusLabel> = {
@@ -107,6 +144,58 @@ export default function HistoricoPage() {
     { label: 'Volume total', value: `R$ ${brl(volumeTotal)}`, delta: 'no mês atual' },
     { label: 'Conversão', value: `${conversionRate}%`, delta: `${approvedThisMonth.length} aprovadas de ${thisMonthQuotations.length}` },
   ]
+
+  function handleVerCotacao(q: Quotation) {
+    const enderecoCompleto = [q.client_address, q.client_city, q.client_state, q.client_cep ? `CEP ${q.client_cep}` : null]
+      .filter(Boolean).join(', ')
+
+    const printData = {
+      quoteNumber:   q.quote_number,
+      date:          formatDateBR(q.created_at),
+      clientCompany: q.client_company  ?? '',
+      clientCnpj:    q.client_cnpj     ?? '',
+      clientEmail:   q.client_email    ?? '',
+      clientContact: q.client_contact  ?? '',
+      clientPhone:   q.client_phone    ?? '',
+      clientAddress: enderecoCompleto,
+      usdBrl:        5.25,
+      paymentTerms:  q.payment_terms   ?? '',
+      deliveryDays:  q.delivery_days   ?? 90,
+      validityDays:  q.validity_days   ?? 30,
+      items: (q.items ?? []).map(item => ({
+        description:        item.description,
+        partNumber:         item.partNumber,
+        ncmCode:            item.ncmCode        ?? '',
+        volumeMl:           item.volumeMl       ?? null,
+        tamanho:            item.tamanho        ?? null,
+        pcsPerBox:          item.pcsPerBox,
+        qtyBoxes:           item.qtyBoxes,
+        qtyUnits:           item.qtyUnits,
+        volumeM3:           item.volumeM3       ?? 0,
+        weightKg:           item.weightKg       ?? 0,
+        finalPriceUnit:     item.finalPriceUnit,
+        finalPriceBox:      item.finalPriceBox,
+        finalPriceUnitSIpi: item.finalPriceUnitSIpi ?? 0,
+        finalPriceBoxSIpi:  item.finalPriceBoxSIpi  ?? 0,
+        finalPriceUnitSImp: item.finalPriceUnitSImp ?? 0,
+        finalPriceBoxSImp:  item.finalPriceBoxSImp  ?? 0,
+        totalBrl:           item.totalBrl,
+        totalSIpiBrl:       item.totalSIpiBrl   ?? 0,
+        totalSImpBrl:       item.totalSImpBrl   ?? 0,
+      })),
+      totals: {
+        boxes:              q.totals?.boxes            ?? 0,
+        units:              q.totals?.units            ?? 0,
+        volumeM3:           0,
+        weightKg:           0,
+        grandTotalBrl:      q.totals?.grandTotalBrl    ?? 0,
+        grandTotalSIpiBrl:  q.totals?.grandTotalSIpiBrl ?? 0,
+        grandTotalSImpBrl:  q.totals?.grandTotalSImpBrl ?? 0,
+      },
+    }
+    localStorage.setItem('quotation_print_data', JSON.stringify(printData))
+    window.open('/cotacao/print', '_blank')
+  }
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
@@ -213,8 +302,11 @@ export default function HistoricoPage() {
                         R$ {brl(getTotal(q))}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button className="text-gray-400 hover:text-gray-700 transition-colors text-xs underline">
-                          Ver
+                        <button
+                          onClick={() => handleVerCotacao(q)}
+                          className="text-blue-600 hover:text-blue-900 transition-colors text-xs font-semibold underline"
+                        >
+                          Ver PDF
                         </button>
                       </td>
                     </tr>

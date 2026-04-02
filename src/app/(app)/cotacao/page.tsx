@@ -143,23 +143,38 @@ interface LineItem {
   breakdown: PricingBreakdown
 }
 
+const DRAFT_KEY = 'cotacao_draft_v2'
+
+function saveDraft(draft: Record<string, unknown>) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)) } catch {}
+}
+
+function loadDraft(): Record<string, unknown> | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
 export default function CotacaoPage() {
-  // Dados da cotação
-  const [quotationNumber] = useState(() => generateQuotationNumber(1))
+  const draft = loadDraft()
+
+  // Dados da cotação — restaura do rascunho se existir
+  const [quotationNumber] = useState(() => (draft?.quotationNumber as string) ?? generateQuotationNumber(1))
   const [today] = useState(() => new Date())
-  const [empresa, setEmpresa] = useState('')
-  const [contato, setContato] = useState('')
-  const [emailContato, setEmailContato] = useState('')
-  const [telefone, setTelefone] = useState('')
-  const [cnpj, setCnpj] = useState('')
-  const [endereco, setEndereco] = useState('')
-  const [cidade, setCidade] = useState('')
-  const [estado, setEstado] = useState('')
-  const [cep, setCep] = useState('')
+  const [empresa, setEmpresa] = useState((draft?.empresa as string) ?? '')
+  const [contato, setContato] = useState((draft?.contato as string) ?? '')
+  const [emailContato, setEmailContato] = useState((draft?.emailContato as string) ?? '')
+  const [telefone, setTelefone] = useState((draft?.telefone as string) ?? '')
+  const [cnpj, setCnpj] = useState((draft?.cnpj as string) ?? '')
+  const [endereco, setEndereco] = useState((draft?.endereco as string) ?? '')
+  const [cidade, setCidade] = useState((draft?.cidade as string) ?? '')
+  const [estado, setEstado] = useState((draft?.estado as string) ?? '')
+  const [cep, setCep] = useState((draft?.cep as string) ?? '')
   const [cidades, setCidades] = useState<string[]>([])
   const [loadingCep, setLoadingCep] = useState(false)
-  const [fornecedor, setFornecedor] = useState('Four Star')
-  const [prazoValidade, setPrazoValidade] = useState('30')
+  const [fornecedor, setFornecedor] = useState((draft?.fornecedor as string) ?? 'Four Star')
+  const [prazoValidade, setPrazoValidade] = useState((draft?.prazoValidade as string) ?? '30')
 
   // Filtros do combobox de produto
   const [filterTipo, setFilterTipo] = useState('')
@@ -167,8 +182,8 @@ export default function CotacaoPage() {
   const [filterCor, setFilterCor] = useState('')
 
   // Condições comerciais
-  const [pagamento, setPagamento] = useState('50% no ato do pedido + 50% na entrega')
-  const [prazo, setPrazo] = useState('90')
+  const [pagamento, setPagamento] = useState((draft?.pagamento as string) ?? '50% no ato do pedido + 50% na entrega')
+  const [prazo, setPrazo] = useState((draft?.prazo as string) ?? '90')
 
   // Produtos do banco
   const [products, setProducts] = useState<ExtProduct[]>([])
@@ -205,6 +220,25 @@ export default function CotacaoPage() {
     }
     return list.slice(0, 20)
   }, [products, productSearch, filterTipo, filterVolume, filterCor])
+
+  // Auto-salvar rascunho local sempre que dados mudarem
+  useEffect(() => {
+    saveDraft({
+      quotationNumber, empresa, contato, emailContato, telefone,
+      cnpj, endereco, cidade, estado, cep, fornecedor,
+      prazoValidade, pagamento, prazo,
+    })
+  }, [quotationNumber, empresa, contato, emailContato, telefone,
+      cnpj, endereco, cidade, estado, cep, fornecedor,
+      prazoValidade, pagamento, prazo])
+
+  function handleNovaCotacao() {
+    if (lineItems.length > 0 || empresa) {
+      if (!confirm('Iniciar nova cotação? Os dados atuais serão descartados.')) return
+    }
+    try { localStorage.removeItem(DRAFT_KEY) } catch {}
+    window.location.reload()
+  }
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -794,6 +828,13 @@ export default function CotacaoPage() {
 
       {/* ── Barra de Ações ───────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 pt-2 pb-6">
+        <button
+          className="px-5 py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-gray-100"
+          style={{ borderColor: '#64748B', color: '#64748B' }}
+          onClick={handleNovaCotacao}
+        >
+          + Nova Cotação
+        </button>
         <button
           className="px-5 py-2.5 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90"
           style={{ backgroundColor: '#0F6E56' }}
