@@ -42,7 +42,7 @@ function Navbar() {
   }
 
   return (
-    <header className="flex-shrink-0 shadow-md">
+    <header className="flex-shrink-0 shadow-md" style={{ position: 'sticky', top: 0, zIndex: 50 }}>
       {/* ── Barra superior: logo + título + user ── */}
       <div style={{ backgroundColor: '#F1F5F9', borderBottom: '1px solid #E2E8F0' }}>
         <div className="max-w-screen-xl mx-auto px-4 h-20 flex items-center justify-between" style={{ position: 'relative' }}>
@@ -90,8 +90,10 @@ function Navbar() {
         <div className="max-w-screen-xl mx-auto px-4 h-10 flex items-center gap-1">
           {navLink('/cotacao', 'Cotação')}
           {navLink('/historico', 'Histórico')}
+          {navLink('/admin/clientes', 'Clientes')}
           {navLink('/admin/entrada', 'Setup')}
           {navLink('/admin/produtos', 'Produtos')}
+          {navLink('/admin/usuarios', 'Usuários')}
         </div>
       </div>
     </header>
