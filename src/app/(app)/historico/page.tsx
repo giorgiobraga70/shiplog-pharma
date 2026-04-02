@@ -182,15 +182,15 @@ export default function HistoricoPage() {
     isYear: boolean
     year: number
     month?: number
-    total: number
-    saved:    StatusBucket   // draft
-    sent:     StatusBucket   // sent
-    approved: StatusBucket   // approved
-    lost:     StatusBucket   // lost
+    total:    StatusBucket
+    saved:    StatusBucket
+    sent:     StatusBucket
+    approved: StatusBucket
+    lost:     StatusBucket
   }
 
-  function bucket(qs: Quotation[], status: QuotationStatus): StatusBucket {
-    const filtered = qs.filter(q => q.status === status)
+  function bucket(qs: Quotation[], status?: QuotationStatus): StatusBucket {
+    const filtered = status ? qs.filter(q => q.status === status) : qs
     return { count: filtered.length, brl: filtered.reduce((a, q) => a + getTotal(q), 0) }
   }
 
@@ -204,16 +204,14 @@ export default function HistoricoPage() {
       if (!map[y][m]) map[y][m] = []
       map[y][m].push(q)
     }
-
     const rows: PeriodStats[] = []
     const years = Object.keys(map).map(Number).sort((a, b) => b - a)
-
     for (const year of years) {
       const months = Object.keys(map[year]).map(Number).sort((a, b) => b - a)
       const yearQs = months.flatMap(m => map[year][m])
       rows.push({
         key: `y-${year}`, label: String(year), isYear: true, year,
-        total:    yearQs.length,
+        total:    bucket(yearQs),
         saved:    bucket(yearQs, 'draft'),
         sent:     bucket(yearQs, 'sent'),
         approved: bucket(yearQs, 'approved'),
@@ -223,7 +221,7 @@ export default function HistoricoPage() {
         const mQs = map[year][month]
         rows.push({
           key: `m-${year}-${month}`, label: `${MONTHS_PT[month]}/${year}`, isYear: false, year, month,
-          total:    mQs.length,
+          total:    bucket(mQs),
           saved:    bucket(mQs, 'draft'),
           sent:     bucket(mQs, 'sent'),
           approved: bucket(mQs, 'approved'),
@@ -232,6 +230,20 @@ export default function HistoricoPage() {
       }
     }
     return rows
+  }, [quotations])
+
+  // Funil geral (todos os períodos)
+  const funnelData = useMemo(() => {
+    const total    = bucket(quotations)
+    const saved    = bucket(quotations, 'draft')
+    const sent     = bucket(quotations, 'sent')
+    const approved = bucket(quotations, 'approved')
+    return [
+      { label: 'Total',     color: '#0C3460', ...total    },
+      { label: 'Salvas',    color: '#1D6FAE', ...saved    },
+      { label: 'Enviadas',  color: '#B45309', ...sent     },
+      { label: 'Aprovadas', color: '#166534', ...approved },
+    ]
   }, [quotations])
 
   async function handleDeletarCotacao(q: Quotation) {
@@ -315,77 +327,136 @@ export default function HistoricoPage() {
         <p className="text-sm text-gray-500 mt-0.5">Visualize e gerencie todas as cotações emitidas</p>
       </div>
 
-      {/* Estatísticas por período */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-700">Estatísticas por Período</h2>
+      {/* Estatísticas + Funil lado a lado */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+        {/* Tabela de estatísticas (2/3) */}
+        <div className="xl:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700">Estatísticas por Período</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
+                  <th className="px-3 py-2.5 text-left   text-xs font-semibold text-gray-600 w-36">Período</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600">Total</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600">Salvas</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600">Enviadas</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600">Aprovadas</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600">Perdidas</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600">Conversão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-xs">Carregando...</td></tr>
+                ) : periodStats.length === 0 ? (
+                  <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhuma cotação ainda.</td></tr>
+                ) : periodStats.map(row => {
+                  const conv = row.total.count > 0
+                    ? ((row.approved.count / row.total.count) * 100).toFixed(0) + '%'
+                    : '—'
+
+                  function Cell({ b, color }: { b: StatusBucket; color?: string }) {
+                    if (b.count === 0) return <span className="text-gray-400 text-xs">—</span>
+                    return (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className={`text-xs font-semibold ${color ?? 'text-gray-700'}`}>{b.count}</span>
+                        <span className="text-[10px] font-mono text-gray-500">R$ {brl(b.brl)}</span>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <tr key={row.key} className="border-b border-gray-100 last:border-0"
+                      style={row.isYear ? { backgroundColor: '#F1F5F9' } : {}}>
+                      <td className="px-3 py-2.5">
+                        {row.isYear
+                          ? <span className="font-bold text-gray-800 text-xs">{row.label}</span>
+                          : <span className="text-gray-600 text-xs pl-3">{row.label}</span>}
+                      </td>
+                      <td className="px-3 py-2.5 text-center"><Cell b={row.total}    color="text-gray-800" /></td>
+                      <td className="px-3 py-2.5 text-center"><Cell b={row.saved}    color="text-blue-700" /></td>
+                      <td className="px-3 py-2.5 text-center"><Cell b={row.sent}     color="text-amber-700" /></td>
+                      <td className="px-3 py-2.5 text-center"><Cell b={row.approved} color="text-green-700" /></td>
+                      <td className="px-3 py-2.5 text-center"><Cell b={row.lost}     color="text-gray-500" /></td>
+                      <td className="px-3 py-2.5 text-center text-xs">
+                        <span className={row.approved.count > 0 ? 'font-semibold text-green-700' : 'text-gray-400'}>
+                          {conv}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
-                <th className="px-4 py-2.5 text-left   text-xs font-semibold text-gray-600 w-44">Período</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Salvas</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Enviadas</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Aprovadas</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Perdidas</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Conversão</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400 text-xs">Carregando...</td></tr>
-              ) : periodStats.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhuma cotação ainda.</td></tr>
-              ) : periodStats.map(row => {
-                const conv = row.total > 0
-                  ? ((row.approved.count / row.total) * 100).toFixed(0) + '%'
+
+        {/* Funil de conversão (1/3) */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700">Funil de Conversão</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Total geral acumulado</p>
+          </div>
+          <div className="px-5 py-5 flex flex-col gap-1">
+            {funnelData.map((stage, i) => {
+              const totalCount = funnelData[0].count
+              // Largura proporcional ao total; mínimo 30% para legibilidade
+              const widthPct = totalCount > 0
+                ? Math.max(30, Math.round((stage.count / totalCount) * 100))
+                : 100
+              const pctLabel = i === 0
+                ? '100%'
+                : totalCount > 0
+                  ? ((stage.count / totalCount) * 100).toFixed(0) + '%'
                   : '—'
 
-                function Cell({ b, color }: { b: StatusBucket; color?: string }) {
-                  if (b.count === 0) return <span className="text-gray-400 text-xs">—</span>
-                  return (
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className={`text-xs font-semibold ${color ?? 'text-gray-700'}`}>{b.count}</span>
-                      <span className="text-[10px] font-mono text-gray-500">R$ {brl(b.brl)}</span>
+              return (
+                <div key={stage.label}>
+                  {/* Barra trapezoidal — diminui a cada nível */}
+                  <div className="flex flex-col items-center">
+                    <div
+                      style={{
+                        width: `${widthPct}%`,
+                        backgroundColor: stage.color,
+                        clipPath: i < funnelData.length - 1
+                          ? 'polygon(0% 0%, 100% 0%, 92% 100%, 8% 100%)'
+                          : 'polygon(8% 0%, 92% 0%, 84% 100%, 16% 100%)',
+                      }}
+                      className="flex items-center justify-between px-4 py-2.5 text-white"
+                    >
+                      <span className="text-xs font-semibold drop-shadow">{stage.label}</span>
+                      <div className="text-right">
+                        <div className="text-sm font-bold">{stage.count}</div>
+                        <div className="text-[10px] opacity-80 font-mono">R$ {brl(stage.brl)}</div>
+                      </div>
                     </div>
-                  )
-                }
-
-                return (
-                  <tr
-                    key={row.key}
-                    className="border-b border-gray-100 last:border-0"
-                    style={row.isYear ? { backgroundColor: '#F1F5F9' } : {}}
-                  >
-                    <td className="px-4 py-2.5">
-                      {row.isYear
-                        ? <span className="font-bold text-gray-800 text-xs">{row.label}</span>
-                        : <span className="text-gray-600 text-xs pl-3">{row.label}</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <Cell b={row.saved} color="text-blue-700" />
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <Cell b={row.sent} color="text-amber-700" />
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <Cell b={row.approved} color="text-green-700" />
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <Cell b={row.lost} color="text-gray-500" />
-                    </td>
-                    <td className="px-4 py-2.5 text-center text-xs">
-                      <span className={row.approved.count > 0 ? 'font-semibold text-green-700' : 'text-gray-400'}>
-                        {conv}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                    {/* Percentual entre estágios */}
+                    {i < funnelData.length - 1 && (
+                      <div className="flex items-center gap-1 py-0.5">
+                        <div className="h-px w-6 bg-gray-200" />
+                        <span className="text-[10px] text-gray-400">{pctLabel}</span>
+                        <div className="h-px w-6 bg-gray-200" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {/* Percentual final (aprovadas) */}
+            {funnelData[0].count > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-500">Conversão geral</span>
+                <span className="text-sm font-bold text-green-700">
+                  {((funnelData[3].count / funnelData[0].count) * 100).toFixed(0)}%
+                </span>
+              </div>
+            )}
+          </div>
         </div>
+
       </div>
 
       {/* Tabela */}
