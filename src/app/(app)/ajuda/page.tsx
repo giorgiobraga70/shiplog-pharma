@@ -67,10 +67,13 @@ export default function AjudaPage() {
             <strong>Dados gerais:</strong> Preencha número da cotação, data, tipo de frete e demais campos do cabeçalho.
           </Step>
           <Step>
-            <strong>Adicionar produtos:</strong> Use o campo de busca para encontrar produtos cadastrados. Informe a quantidade e os preços de custo e venda.
+            <strong>Adicionar produtos:</strong> Use o campo de busca para encontrar produtos cadastrados. Você pode informar a quantidade por <strong>peças</strong> ou por <strong>caixas</strong> — o sistema converte automaticamente entre os dois (arredondando caixas sempre para cima).
           </Step>
           <Step>
-            <strong>Fornecedores:</strong> Cada produto pode ter preço associado ao fornecedor <strong>Munan</strong> ou <strong>Four Star</strong>. Selecione o fornecedor desejado ao adicionar o item.
+            <strong>Desconto por item:</strong> O campo <strong>Desconto %</strong> aplica um desconto ou acréscimo diretamente sobre os preços daquele item. Use <em>-10</em> para reduzir 10% ou <em>+5</em> para aumentar 5%. O desconto é exibido na coluna &quot;Desc.%&quot; da tabela (vermelho = redução, verde = acréscimo).
+          </Step>
+          <Step>
+            <strong>Fornecedores:</strong> Cada produto pode ter preço associado ao fornecedor <strong>Munan</strong> ou <strong>Four Star</strong>. Selecione o fornecedor antes de adicionar os itens — isso recalcula todos os preços.
           </Step>
           <Step>
             <strong>Salvar:</strong> Clique em &quot;Salvar Cotação&quot; para registrar no histórico com status inicial <em>Aberta</em>.
