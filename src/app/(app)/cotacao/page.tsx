@@ -1,33 +1,56 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import {
-  calcItemPrice,
-  type GlobalParams,
-  type Product,
-  type QuotationItem,
-  type PricingBreakdown,
-} from '@/lib/pricingEngine'
+import { type Product, type PricingBreakdown } from '@/lib/pricingEngine'
 
-// ─── Parâmetros globais padrão ─────────────────────────────────────────────────
+// ─── Preços armazenados por fornecedor ────────────────────────────────────────
 
-const DEFAULT_PARAMS: GlobalParams = {
-  usdBrl: 5.25,
-  eurBrl: 6.042,
-  usdCny: 6.913,
-  freightUsd: 3000,
-  freightBrl: 15711.30,
-  containerM3: 70,
-  insurance: 0.002,
-  siscomex: 347.02,
-  sda: 150,
-  blRelease: 310,
-  deconsolidation: 324,
-  stevedoring: 1800,
-  customsClearance: 1621,
-  storage: 5000,
-  roadFreight: 5000,
-  others: 924,
+interface StoredPrices {
+  un_cimp_cipi_munan?:    number | null
+  cx_cimp_cipi_munan?:    number | null
+  un_cimp_sipi_munan?:    number | null
+  cx_cimp_sipi_munan?:    number | null
+  un_simp_munan?:         number | null
+  cx_simp_munan?:         number | null
+  un_cimp_cipi_fourstar?: number | null
+  cx_cimp_cipi_fourstar?: number | null
+  un_cimp_sipi_fourstar?: number | null
+  cx_cimp_sipi_fourstar?: number | null
+  un_simp_fourstar?:      number | null
+  cx_simp_fourstar?:      number | null
+}
+
+type ExtProduct = Product & StoredPrices
+
+function buildBreakdown(product: ExtProduct, qtyBoxes: number, fornecedor: string): PricingBreakdown {
+  const m = fornecedor === 'Munan'
+  const unCI  = m ? (product.un_cimp_cipi_munan   ?? 0) : (product.un_cimp_cipi_fourstar   ?? 0)
+  const cxCI  = m ? (product.cx_cimp_cipi_munan   ?? 0) : (product.cx_cimp_cipi_fourstar   ?? 0)
+  const unSI  = m ? (product.un_cimp_sipi_munan   ?? 0) : (product.un_cimp_sipi_fourstar   ?? 0)
+  const cxSI  = m ? (product.cx_cimp_sipi_munan   ?? 0) : (product.cx_cimp_sipi_fourstar   ?? 0)
+  const unSIm = m ? (product.un_simp_munan        ?? 0) : (product.un_simp_fourstar        ?? 0)
+  const cxSIm = m ? (product.cx_simp_munan        ?? 0) : (product.cx_simp_fourstar        ?? 0)
+  return {
+    productId: product.id,
+    description: product.description,
+    partNumber: product.partNumber,
+    qtyBoxes,
+    qtyUnits: qtyBoxes * product.pcsPerBox,
+    volumeM3: qtyBoxes * product.volumeBoxM3,
+    weightKg: qtyBoxes * product.weightGrossKg,
+    fobUsdBox: 0, navalUsdBox: 0, insuranceUsdBox: 0, cifUsdBox: 0, cifBrlBox: 0,
+    iiValue: 0, ipiValue: 0, pisValue: 0, cofinsValue: 0, icmsValue: 0, totalTaxesBrl: 0,
+    customsPerBox: 0, basePriceBox: cxCI, basePriceUnit: unCI, markupRate: 0,
+    finalPriceUnit: unCI,
+    finalPriceBox:  cxCI,
+    totalBrl:       cxCI * qtyBoxes,
+    finalPriceUnitSIpi: unSI,
+    finalPriceBoxSIpi:  cxSI,
+    totalSIpiBrl:       cxSI * qtyBoxes,
+    finalPriceUnitSImp: unSIm,
+    finalPriceBoxSImp:  cxSIm,
+    totalSImpBrl:       cxSIm * qtyBoxes,
+  }
 }
 
 // ─── Helpers de formatação ─────────────────────────────────────────────────────
@@ -58,33 +81,34 @@ function formatDateBR(date: Date): string {
 // A tabela "products" no Supabase usa snake_case; o pricingEngine usa camelCase.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapDbProductToProduct(row: any): Product {
+function mapDbProductToProduct(row: any): ExtProduct {
   return {
     id: row.id ?? row.part_number,
     description: row.description,
     partNumber: row.part_number,
     productType: row.product_type ?? '',
     ncmCode: row.ncm_code ?? '',
-    pcsPerBox: Number(row.pcs_per_box),
-    weightGrossKg: Number(row.weight_gross_kg),
-    volumeBoxM3: Number(row.volume_box_m3),
-    fobUsd: Number(row.fob_usd),
+    pcsPerBox: Number(row.pcs_per_box) || 1,
+    weightGrossKg: Number(row.weight_gross_kg) || 0,
+    volumeBoxM3: Number(row.volume_box_m3) || 0,
+    fobUsd: 0,
     volumeMl: row.volume_ml != null ? Number(row.volume_ml) : null,
     tamanho: row.pkg_desc_pt ?? null,
-    taxRates: {
-      ii: Number(row.tax_ii ?? 0),
-      ipi: Number(row.tax_ipi ?? 0),
-      pis: Number(row.tax_pis ?? 0),
-      cofins: Number(row.tax_cofins ?? 0),
-      icms: Number(row.tax_icms ?? 0),
-    },
-    markupTable: {
-      qty10: Number(row.markup_qty10 ?? 0.70),
-      qty20: Number(row.markup_qty20 ?? 0.65),
-      qty50: Number(row.markup_qty50 ?? 0.60),
-      qty100: Number(row.markup_qty100 ?? 0.55),
-      qty200: Number(row.markup_qty200 ?? 0.50),
-    },
+    taxRates: { ii: 0, ipi: 0, pis: 0, cofins: 0, icms: 0 },
+    markupTable: { qty10: 0.70, qty20: 0.65, qty50: 0.60, qty100: 0.55, qty200: 0.50 },
+    // Preços pré-calculados
+    un_cimp_cipi_munan:    row.un_cimp_cipi_munan    ?? null,
+    cx_cimp_cipi_munan:    row.cx_cimp_cipi_munan    ?? null,
+    un_cimp_sipi_munan:    row.un_cimp_sipi_munan    ?? null,
+    cx_cimp_sipi_munan:    row.cx_cimp_sipi_munan    ?? null,
+    un_simp_munan:         row.un_simp_munan         ?? null,
+    cx_simp_munan:         row.cx_simp_munan         ?? null,
+    un_cimp_cipi_fourstar: row.un_cimp_cipi_fourstar ?? null,
+    cx_cimp_cipi_fourstar: row.cx_cimp_cipi_fourstar ?? null,
+    un_cimp_sipi_fourstar: row.un_cimp_sipi_fourstar ?? null,
+    cx_cimp_sipi_fourstar: row.cx_cimp_sipi_fourstar ?? null,
+    un_simp_fourstar:      row.un_simp_fourstar      ?? null,
+    cx_simp_fourstar:      row.cx_simp_fourstar      ?? null,
   }
 }
 
@@ -114,7 +138,7 @@ const ESTADOS_BR = [
 
 interface LineItem {
   id: string
-  product: Product
+  product: ExtProduct
   qtyBoxes: number
   breakdown: PricingBreakdown
 }
@@ -193,9 +217,6 @@ export default function CotacaoPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Params globais (usdBrl vem do DEFAULT_PARAMS/setup)
-  const params = DEFAULT_PARAMS
-
   // Totais
   const totals = useMemo(() => {
     const items = lineItems.map((li) => li.breakdown)
@@ -271,8 +292,7 @@ export default function CotacaoPage() {
     const product = products.find((p) => p.id === selectedProductId)
     if (!product) return
 
-    const item: QuotationItem = { product, qtyBoxes: qty }
-    const breakdown = calcItemPrice(item, params)
+    const breakdown = buildBreakdown(product, qty, fornecedor)
 
     setLineItems((prev) => [
       ...prev,
@@ -302,7 +322,7 @@ export default function CotacaoPage() {
           client_state: estado,
           client_cep: cep,
           supplier: fornecedor,
-          usd_brl: DEFAULT_PARAMS.usdBrl,
+          usd_brl: 5.25,
           payment_terms: pagamento,
           delivery_days: parseInt(prazo) || 90,
           validity_days: parseInt(prazoValidade) || 30,
@@ -342,7 +362,7 @@ export default function CotacaoPage() {
       client_email: emailContato,
       client_contact: contato,
       supplier: fornecedor,
-      usd_brl: DEFAULT_PARAMS.usdBrl,
+      usd_brl: 5.25,
       payment_terms: pagamento,
       delivery_days: parseInt(prazo) || 30,
       destination_port: cidade ? `${cidade}${estado ? ' - ' + estado : ''}` : '',
@@ -383,7 +403,7 @@ export default function CotacaoPage() {
       clientCity: cidade,
       clientState: estado,
       clientCep: cep,
-      usdBrl: DEFAULT_PARAMS.usdBrl,
+      usdBrl: 5.25,
       paymentTerms: pagamento,
       deliveryDays: parseInt(prazo) || 90,
       validityDays: parseInt(prazoValidade) || 30,
@@ -561,7 +581,15 @@ export default function CotacaoPage() {
           </div>
           <div>
             <label className={labelClass}>Fornecedor</label>
-            <select value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} className={inputClass}>
+            <select value={fornecedor} onChange={(e) => {
+              const f = e.target.value
+              setFornecedor(f)
+              // Recalcula preços dos itens já adicionados com o novo fornecedor
+              setLineItems(prev => prev.map(li => ({
+                ...li,
+                breakdown: buildBreakdown(li.product, li.qtyBoxes, f),
+              })))
+            }} className={inputClass}>
               <option value="Four Star">Four Star</option>
               <option value="Munan">Munan</option>
             </select>
