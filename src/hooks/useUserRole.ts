@@ -6,19 +6,23 @@ export function useUserRole() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    async function loadRole() {
+      const { data } = await supabase.auth.getUser()
       if (!data.user) { setRole(null); setLoading(false); return }
-      supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
-        .then(({ data: profile }) => {
-          setRole((profile?.role as 'admin' | 'user') ?? 'user')
-          setLoading(false)
-        })
-        .catch(() => { setRole('user'); setLoading(false) })
-    })
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single()
+        setRole((profile?.role as 'admin' | 'user') ?? 'user')
+      } catch {
+        setRole('user')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadRole()
   }, [])
 
   return { role, isAdmin: role === 'admin', loading }

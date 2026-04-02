@@ -16,19 +16,20 @@ function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    async function loadUser() {
+      const { data } = await supabase.auth.getUser()
       setUserEmail(data.user?.email ?? null)
       if (!data.user) return
-      supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
-        .then(({ data: profile }) => {
-          setIsAdmin(profile?.role === 'admin')
-        })
-        .catch(() => {})
-    })
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single()
+        setIsAdmin(profile?.role === 'admin')
+      } catch {}
+    }
+    loadUser()
   }, [])
 
   async function handleSignOut() {
