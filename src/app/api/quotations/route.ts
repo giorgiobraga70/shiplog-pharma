@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabaseServer'
 
+// Extrai o nome do responsável de uma linha da tabela
+function extractResponsible(q: Record<string, unknown>): string {
+  // 1. Coluna dedicada (existe se o SQL foi rodado)
+  if (q.responsible_name && typeof q.responsible_name === 'string') return q.responsible_name
+  // 2. Embutido no totals JSON (fallback sem SQL)
+  const t = q.totals as Record<string, unknown> | null
+  if (t?._r && typeof t._r === 'string') return t._r
+  return ''
+}
+
 export async function GET() {
   try {
     const { data, error } = await supabaseServer
@@ -11,38 +21,37 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // Para linhas que não têm responsible_name salvo, tenta via profiles
     const rows = data ?? []
-    const missingIds = [...new Set(
-      rows
-        .filter((q: Record<string, unknown>) => !q.responsible_name && q.created_by)
-        .map((q: Record<string, unknown>) => q.created_by as string)
-    )]
-
-    let profileMap: Record<string, string> = {}
-    if (missingIds.length > 0) {
-      const { data: profiles } = await supabaseServer
-        .from('profiles')
-        .select('id, nome')
-        .in('id', missingIds)
-      if (profiles) {
-        profileMap = Object.fromEntries(
-          profiles.map((p: { id: string; nome: string }) => [p.id, p.nome ?? ''])
-        )
-      }
-    }
-
     const enriched = rows.map((q: Record<string, unknown>) => ({
       ...q,
-      responsible_name:
-        (q.responsible_name as string) ||
-        (q.created_by ? (profileMap[q.created_by as string] ?? '') : ''),
+      responsible_name: extractResponsible(q),
     }))
 
     return NextResponse.json(enriched)
   } catch {
     return NextResponse.json({ error: 'Erro interno ao buscar cotações.' }, { status: 500 })
   }
+}
+
+// Busca o nome do responsável via profiles ou, como fallback, via auth.users
+async function fetchResponsibleName(userId: string): Promise<string> {
+  // Tenta profiles.nome primeiro
+  try {
+    const { data: profile } = await supabaseServer
+      .from('profiles')
+      .select('nome')
+      .eq('id', userId)
+      .single()
+    if (profile?.nome) return profile.nome as string
+  } catch {}
+
+  // Fallback: email do auth.users (parte antes do @)
+  try {
+    const { data } = await supabaseServer.auth.admin.getUserById(userId)
+    if (data?.user?.email) return data.user.email.split('@')[0]
+  } catch {}
+
+  return ''
 }
 
 export async function POST(request: Request) {
@@ -71,45 +80,43 @@ export async function POST(request: Request) {
       created_by,
     } = body
 
-    // Busca nome do responsável server-side para gravar junto à cotação
-    let responsible_name = ''
-    if (created_by) {
-      const { data: profile } = await supabaseServer
-        .from('profiles')
-        .select('nome')
-        .eq('id', created_by)
-        .single()
-      responsible_name = profile?.nome ?? ''
-    }
+    // Busca nome do responsável (profiles.nome → email como fallback)
+    const responsible_name = created_by ? await fetchResponsibleName(created_by) : ''
 
     // destination_port derivado de cidade + estado (coluna original mantida)
     const destination_port = client_city
       ? `${client_city}${client_state ? ' - ' + client_state : ''}`
       : null
 
-    // ── Tenta com todos os campos (incluindo colunas novas) ───────────────────
+    // Embute o nome no totals JSON — funciona SEM precisar de nova coluna
+    const totalsWithMeta = {
+      ...(totals ?? {}),
+      _r: responsible_name || undefined,
+    }
+
+    // ── Tenta com colunas novas (created_by, responsible_name) ───────────────
     const fullPayload = {
       quote_number,
       client_company,
-      client_email:      client_email   ?? null,
-      client_contact:    client_contact ?? null,
-      client_phone:      client_phone   ?? null,
-      client_cnpj:       client_cnpj    ?? null,
-      client_address:    client_address ?? null,
-      client_city:       client_city    ?? null,
-      client_state:      client_state   ?? null,
-      client_cep:        client_cep     ?? null,
-      supplier:          supplier       ?? null,
-      usd_brl_rate:      usd_brl        ?? 5.25,
-      payment_terms:     payment_terms  ?? null,
-      delivery_days:     delivery_days  ?? null,
+      client_email:     client_email   ?? null,
+      client_contact:   client_contact ?? null,
+      client_phone:     client_phone   ?? null,
+      client_cnpj:      client_cnpj    ?? null,
+      client_address:   client_address ?? null,
+      client_city:      client_city    ?? null,
+      client_state:     client_state   ?? null,
+      client_cep:       client_cep     ?? null,
+      supplier:         supplier       ?? null,
+      usd_brl_rate:     usd_brl        ?? 5.25,
+      payment_terms:    payment_terms  ?? null,
+      delivery_days:    delivery_days  ?? null,
       destination_port,
-      validity_days:     validity_days  ?? null,
-      items:             items          ?? [],
-      totals:            totals         ?? {},
-      status:            status         ?? 'draft',
-      created_by:        created_by     ?? null,
-      responsible_name:  responsible_name || null,
+      validity_days:    validity_days  ?? null,
+      items:            items          ?? [],
+      totals:           totalsWithMeta,
+      status:           status         ?? 'draft',
+      created_by:       created_by     ?? null,
+      responsible_name: responsible_name || null,
     }
 
     const { data, error } = await supabaseServer
@@ -120,7 +127,8 @@ export async function POST(request: Request) {
 
     if (!error) return NextResponse.json(data, { status: 201 })
 
-    // ── Fallback: erro → tenta sem colunas que podem não existir ─────────────
+    // ── Fallback: colunas novas não existem — usa apenas colunas originais ────
+    // O nome fica embutido em totals._r para ser lido pelo GET
     const basePayload = {
       quote_number,
       client_company,
@@ -132,9 +140,10 @@ export async function POST(request: Request) {
       destination_port,
       validity_days:  validity_days  ?? null,
       items:          items          ?? [],
-      totals:         totals         ?? {},
+      totals:         totalsWithMeta,   // ← nome embutido aqui
       status:         status         ?? 'draft',
     }
+
     const { data: data2, error: error2 } = await supabaseServer
       .from('quotations')
       .upsert([basePayload], { onConflict: 'quote_number' })
