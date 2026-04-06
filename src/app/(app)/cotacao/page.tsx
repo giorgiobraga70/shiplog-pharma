@@ -653,6 +653,25 @@ export default function CotacaoPage() {
     setLineItems((prev) => prev.filter((li) => li.id !== id))
   }
 
+  function handleUpdateQty(id: string, newBoxes: number) {
+    if (!newBoxes || newBoxes <= 0) return
+    setLineItems(prev => prev.map(li => {
+      if (li.id !== id) return li
+      const rawBreakdown = buildBreakdown(li.product, newBoxes, fornecedor)
+      const breakdown = applyDiscount(rawBreakdown, li.discount)
+      return { ...li, qtyBoxes: newBoxes, breakdown }
+    }))
+  }
+
+  function handleUpdateDiscount(id: string, newDiscount: number) {
+    setLineItems(prev => prev.map(li => {
+      if (li.id !== id) return li
+      const rawBreakdown = buildBreakdown(li.product, li.qtyBoxes, fornecedor)
+      const breakdown = applyDiscount(rawBreakdown, newDiscount)
+      return { ...li, discount: newDiscount, breakdown }
+    }))
+  }
+
   async function handleSalvarRascunho() {
     try {
       const res = await fetch('/api/quotations', {
@@ -1233,18 +1252,40 @@ export default function CotacaoPage() {
                     <td className="px-3 py-2.5 text-gray-500">{idx + 1}</td>
                     <td className="px-3 py-2.5 text-gray-900 font-medium">{li.product.description}</td>
                     <td className="px-3 py-2.5 text-gray-500 font-mono">{li.product.partNumber}</td>
-                    <td className="px-3 py-2.5 text-right font-mono text-gray-800">{li.breakdown.qtyBoxes}</td>
+                    {/* Caixas — editável inline */}
+                    <td className="px-1 py-1.5 text-center">
+                      <input
+                        type="number"
+                        min="1"
+                        defaultValue={li.qtyBoxes}
+                        key={li.id + '-boxes'}
+                        onBlur={e => {
+                          const v = parseInt(e.target.value, 10)
+                          if (v > 0 && v !== li.qtyBoxes) handleUpdateQty(li.id, v)
+                        }}
+                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                        className="w-16 text-center font-mono text-xs border border-transparent rounded px-1 py-0.5 bg-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none focus:bg-white transition-colors"
+                      />
+                    </td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{li.breakdown.qtyUnits.toLocaleString('pt-BR')}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{num(li.breakdown.volumeM3, 3)}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{num(li.breakdown.weightKg, 1)}</td>
-                    <td className="px-3 py-2.5 text-center font-mono text-sm">
-                      {li.discount !== 0 ? (
-                        <span style={{ color: li.discount < 0 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
-                          {li.discount > 0 ? '+' : ''}{li.discount}%
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
+                    {/* Desconto % — editável inline */}
+                    <td className="px-1 py-1.5 text-center">
+                      <input
+                        type="text"
+                        defaultValue={li.discount !== 0 ? String(li.discount) : ''}
+                        key={li.id + '-disc'}
+                        placeholder="0"
+                        onBlur={e => {
+                          const v = parseFloat(e.target.value.replace(',', '.'))
+                          const newDisc = isNaN(v) ? 0 : v
+                          if (newDisc !== li.discount) handleUpdateDiscount(li.id, newDisc)
+                        }}
+                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                        className="w-14 text-center font-mono text-xs border border-transparent rounded px-1 py-0.5 bg-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none focus:bg-white transition-colors"
+                        style={{ color: li.discount < 0 ? '#dc2626' : li.discount > 0 ? '#16a34a' : undefined }}
+                      />
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{brl(li.breakdown.finalPriceUnit)}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{brl(li.breakdown.finalPriceBox)}</td>
