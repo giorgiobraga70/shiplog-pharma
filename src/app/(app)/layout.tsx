@@ -100,6 +100,7 @@ function Navbar() {
       {/* ── Barra inferior: menu ── */}
       <div style={{ backgroundColor: '#CBD5E1' }}>
         <div className="max-w-screen-xl mx-auto px-4 h-10 flex items-center gap-1">
+          {navLink('/dashboard', 'Dashboard')}
           {navLink('/cotacao', 'Cotação')}
           {navLink('/historico', 'Histórico')}
           {navLink('/admin/clientes', 'Clientes')}
