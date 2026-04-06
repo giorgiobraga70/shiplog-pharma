@@ -283,6 +283,9 @@ export default function CotacaoPage() {
   const [products, setProducts] = useState<ExtProduct[]>([])
   const [loadingProducts, setLoadingProducts] = useState(true)
 
+  // Desconto global sobre o total da cotação
+  const [globalDiscount, setGlobalDiscount] = useState((draft?.globalDiscount as string) ?? '')
+
   // Produtos selecionados
   const [selectedProductId, setSelectedProductId] = useState('')
   const [qtyBoxesInput, setQtyBoxesInput] = useState('')
@@ -379,7 +382,7 @@ export default function CotacaoPage() {
     saveDraft({
       empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo,
+      prazoValidade, pagamento, prazo, globalDiscount,
       savedItems: lineItems.map(li => ({
         partNumber: li.product.partNumber,
         qtyBoxes: li.qtyBoxes,
@@ -387,7 +390,7 @@ export default function CotacaoPage() {
     })
   }, [empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, lineItems])
+      prazoValidade, pagamento, prazo, globalDiscount, lineItems])
 
   function handleNovaCotacao() {
     if (lineItems.length > 0 || empresa) {
@@ -486,14 +489,21 @@ export default function CotacaoPage() {
   // Totais
   const totals = useMemo(() => {
     const items = lineItems.map((li) => li.breakdown)
+    const subtotal = items.reduce((a, r) => a + r.totalBrl, 0)
+    const discPct = parseFloat(globalDiscount.replace(',', '.')) || 0
+    const discValue = subtotal * (discPct / 100)
+    const totalFinal = subtotal + discValue // discPct negativo reduz, positivo aumenta
     return {
       boxes: items.reduce((a, r) => a + r.qtyBoxes, 0),
       units: items.reduce((a, r) => a + r.qtyUnits, 0),
       volume: items.reduce((a, r) => a + r.volumeM3, 0),
       weight: items.reduce((a, r) => a + r.weightKg, 0),
-      total: items.reduce((a, r) => a + r.totalBrl, 0),
+      total: subtotal,
+      discPct,
+      discValue,
+      totalFinal,
     }
-  }, [lineItems])
+  }, [lineItems, globalDiscount])
 
   // Carregar produtos do banco
   useEffect(() => {
@@ -677,7 +687,9 @@ export default function CotacaoPage() {
             units: totals.units,
             volumeM3: totals.volume,
             weightKg: totals.weight,
-            grandTotalBrl: totals.total,
+            grandTotalBrl: totals.totalFinal,
+            subtotalBrl: totals.total,
+            globalDiscountPct: totals.discPct,
           },
           status: 'draft',
         }),
@@ -726,7 +738,9 @@ export default function CotacaoPage() {
         units: totals.units,
         volumeM3: totals.volume,
         weightKg: totals.weight,
-        grandTotalBrl: totals.total,
+        grandTotalBrl: totals.totalFinal,
+        subtotalBrl: totals.total,
+        globalDiscountPct: totals.discPct,
       },
       status,
     }
@@ -771,11 +785,14 @@ export default function CotacaoPage() {
         totalSImpBrl: item.breakdown.totalSImpBrl,
       })),
       totals: {
-        boxes: lineItems.reduce((a, i) => a + i.qtyBoxes, 0),
-        units: lineItems.reduce((a, i) => a + i.breakdown.qtyUnits, 0),
-        volumeM3: lineItems.reduce((a, i) => a + i.breakdown.volumeM3, 0),
-        weightKg: lineItems.reduce((a, i) => a + i.breakdown.weightKg, 0),
-        grandTotalBrl: lineItems.reduce((a, i) => a + i.breakdown.totalBrl, 0),
+        boxes: totals.boxes,
+        units: totals.units,
+        volumeM3: totals.volume,
+        weightKg: totals.weight,
+        subtotalBrl: totals.total,
+        globalDiscountPct: totals.discPct,
+        globalDiscountValue: totals.discValue,
+        grandTotalBrl: totals.totalFinal,
         grandTotalSIpiBrl: lineItems.reduce((a, i) => a + i.breakdown.totalSIpiBrl, 0),
         grandTotalSImpBrl: lineItems.reduce((a, i) => a + i.breakdown.totalSImpBrl, 0),
       },
@@ -1260,6 +1277,58 @@ export default function CotacaoPage() {
           </table>
         </div>
       </section>
+
+      {/* ── Resumo e Desconto Global ─────────────────────────────────────── */}
+      {lineItems.length > 0 && (
+        <section className={cardClass}>
+          <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">
+            Resumo da Cotação
+          </h2>
+          <div className="flex flex-wrap items-end gap-6">
+            {/* Subtotal */}
+            <div className="flex-1 min-w-[180px]">
+              <p className="text-xs text-gray-500 mb-1">Subtotal (itens)</p>
+              <p className="text-lg font-mono font-semibold text-gray-800">
+                R$ {brl(totals.total)}
+              </p>
+            </div>
+
+            {/* Campo desconto global */}
+            <div className="w-44">
+              <label className={labelClass}>Desconto global (%)</label>
+              <input
+                type="text"
+                value={globalDiscount}
+                onChange={e => setGlobalDiscount(e.target.value)}
+                placeholder="Ex: -5 ou +3"
+                className={`${inputClass} font-mono`}
+                title="-5 reduz 5% do total, +3 aumenta 3%"
+              />
+            </div>
+
+            {/* Valor do desconto */}
+            {totals.discPct !== 0 && (
+              <div className="flex-1 min-w-[140px]">
+                <p className="text-xs text-gray-500 mb-1">
+                  {totals.discPct < 0 ? 'Desconto' : 'Acréscimo'}
+                </p>
+                <p className="text-base font-mono font-semibold"
+                  style={{ color: totals.discPct < 0 ? '#dc2626' : '#16a34a' }}>
+                  {totals.discPct < 0 ? '−' : '+'} R$ {brl(Math.abs(totals.discValue))}
+                </p>
+              </div>
+            )}
+
+            {/* Total Final */}
+            <div className="flex-1 min-w-[180px] text-right">
+              <p className="text-xs text-gray-500 mb-1">Total Final</p>
+              <p className="text-2xl font-mono font-bold" style={{ color: '#0C3460' }}>
+                R$ {brl(totals.totalFinal)}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── Barra de Ações ───────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 pt-2 pb-6">
