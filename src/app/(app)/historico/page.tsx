@@ -384,6 +384,57 @@ export default function HistoricoPage() {
     window.open('/historico/print', '_blank')
   }
 
+  function handleExportCsv() {
+    const rows = filtered
+
+    // Cabeçalho
+    const headers = [
+      'Número', 'Data', 'Empresa', 'CNPJ', 'Contato', 'E-mail', 'Telefone',
+      'Cidade', 'Estado', 'Fornecedor', 'Pagamento', 'Prazo Entrega (dias)',
+      'Validade (dias)', 'Status', 'Responsável', 'Itens', 'Total BRL',
+    ]
+
+    // Linhas
+    const dataRows = rows.map(q => [
+      q.quote_number ?? '',
+      formatDateBR(q.created_at),
+      q.client_company ?? '',
+      q.client_cnpj ?? '',
+      q.client_contact ?? '',
+      q.client_email ?? '',
+      q.client_phone ?? '',
+      q.client_city ?? '',
+      q.client_state ?? '',
+      q.supplier ?? '',
+      q.payment_terms ?? '',
+      q.delivery_days ?? '',
+      q.validity_days ?? '',
+      STATUS_LABEL[q.status] ?? '',
+      q.responsible_name ?? '',
+      getItemCount(q),
+      getTotal(q).toFixed(2).replace('.', ','),
+    ])
+
+    // Monta CSV com separador ; (compatível com Excel brasileiro)
+    const escape = (v: string | number) => {
+      const s = String(v)
+      return s.includes(';') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const csv = [headers, ...dataRows]
+      .map(row => row.map(escape).join(';'))
+      .join('\r\n')
+
+    // Adiciona BOM para Excel reconhecer UTF-8
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `historico-cotacoes-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -391,13 +442,23 @@ export default function HistoricoPage() {
           <h1 className="text-xl font-bold text-gray-900">Histórico de Cotações</h1>
           <p className="text-sm text-gray-500 mt-0.5">Visualize e gerencie todas as cotações emitidas</p>
         </div>
-        <button
-          onClick={handleRelatorio}
-          className="px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:opacity-90 whitespace-nowrap"
-          style={{ borderColor: '#0C3460', color: '#0C3460' }}
-        >
-          Relatório PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-green-700 hover:text-white whitespace-nowrap"
+            style={{ borderColor: '#15803d', color: '#15803d' }}
+            title="Exporta as cotações filtradas para Excel/CSV"
+          >
+            ↓ Exportar CSV
+          </button>
+          <button
+            onClick={handleRelatorio}
+            className="px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:opacity-90 whitespace-nowrap"
+            style={{ borderColor: '#0C3460', color: '#0C3460' }}
+          >
+            Relatório PDF
+          </button>
+        </div>
       </div>
 
       {/* Tabela */}
