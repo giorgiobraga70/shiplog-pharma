@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 
 type QuotationStatus = 'draft' | 'sent' | 'approved' | 'lost'
 type StatusLabel = 'Salva' | 'Enviada' | 'Aprovada' | 'Perdida'
@@ -53,6 +53,7 @@ interface Quotation {
     grandTotalSImpBrl?: number
     boxes?: number
     units?: number
+    _log?: Array<{ from: string; to: string; at: string }>
   } | null
 }
 
@@ -106,6 +107,17 @@ function firstWord(name?: string): string {
   return name.trim().split(/\s+/)[0]
 }
 
+function getValidityAlert(q: { created_at: string; validity_days?: number; status: string }): { label: string; color: string } | null {
+  if (q.status === 'approved' || q.status === 'lost') return null
+  const days = q.validity_days ?? 30
+  const expiresAt = new Date(q.created_at).getTime() + days * 86400000
+  const daysLeft = Math.ceil((expiresAt - Date.now()) / 86400000)
+  if (daysLeft < 0)  return { label: 'Vencida',         color: '#dc2626' }
+  if (daysLeft === 0) return { label: 'Vence hoje',      color: '#ea580c' }
+  if (daysLeft <= 3)  return { label: `Vence em ${daysLeft}d`, color: '#d97706' }
+  return null
+}
+
 export default function HistoricoPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
@@ -116,6 +128,9 @@ export default function HistoricoPage() {
   const [openStatusId, setOpenStatusId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Log expandido
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
 
   // Ordenação da tabela
   type SortKey = 'quote_number' | 'client_company' | 'responsible_name' | 'created_at' | 'status' | 'items' | 'total'
@@ -155,10 +170,11 @@ export default function HistoricoPage() {
     setUpdatingId(q.id)
     setOpenStatusId(null)
     try {
+      const logEntry = { from: q.status, to: newStatus, at: new Date().toISOString() }
       const res = await fetch(`/api/quotations/${q.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, logEntry }),
       })
       if (res.ok) {
         setQuotations(prev => prev.map(x => x.id === q.id ? { ...x, status: newStatus } : x))
@@ -543,12 +559,25 @@ export default function HistoricoPage() {
                   const isOpen = openStatusId === q.id
                   const isUpdating = updatingId === q.id
 
+                  const log = q.totals?._log ?? []
+                  const isLogOpen = expandedLogId === q.id
+
                   return (
-                    <tr key={q.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <React.Fragment key={q.id}>
+                    <tr className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer ${isLogOpen ? 'bg-blue-50' : ''}`}
+                      onClick={() => setExpandedLogId(isLogOpen ? null : q.id)}>
                       <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-gray-700">{q.quote_number}</td>
                       <td className="px-4 py-3 text-center text-gray-900 font-medium">{q.client_company}</td>
                       <td className="px-4 py-3 text-center text-gray-600 text-xs">{firstWord(q.responsible_name)}</td>
-                      <td className="px-4 py-3 text-center text-gray-500 text-xs">{formatDateBR(q.created_at)}</td>
+                      <td className="px-4 py-3 text-center text-xs">
+                        <span className="text-gray-500">{formatDateBR(q.created_at)}</span>
+                        {(() => { const alert = getValidityAlert(q); return alert ? (
+                          <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded text-white font-semibold"
+                            style={{ backgroundColor: alert.color, fontSize: '9px' }}>
+                            {alert.label}
+                          </span>
+                        ) : null })()}
+                      </td>
 
                       {/* Status com dropdown inline */}
                       <td className="px-4 py-3 text-center">
@@ -639,6 +668,36 @@ export default function HistoricoPage() {
                         </div>
                       </td>
                     </tr>
+
+                    {/* Log de alterações expandível */}
+                    {isLogOpen && (
+                      <tr className="border-b border-blue-100 bg-blue-50">
+                        <td colSpan={8} className="px-6 py-3">
+                          <p className="text-xs font-semibold text-blue-800 mb-2">Histórico de alterações de status</p>
+                          {log.length === 0 ? (
+                            <p className="text-xs text-gray-400 italic">Nenhuma alteração registrada.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {log.map((entry, i) => (
+                                <div key={i} className="flex items-center gap-1.5 bg-white border border-blue-200 rounded-lg px-3 py-1.5 text-xs shadow-sm">
+                                  <span className="font-semibold" style={{ color: STATUS_STYLES[STATUS_LABEL[entry.from as QuotationStatus] ?? 'Salva'].color }}>
+                                    {STATUS_LABEL[entry.from as QuotationStatus] ?? entry.from}
+                                  </span>
+                                  <span className="text-gray-400">→</span>
+                                  <span className="font-semibold" style={{ color: STATUS_STYLES[STATUS_LABEL[entry.to as QuotationStatus] ?? 'Salva'].color }}>
+                                    {STATUS_LABEL[entry.to as QuotationStatus] ?? entry.to}
+                                  </span>
+                                  <span className="text-gray-400 ml-1">
+                                    {new Date(entry.at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   )
                 })
               )}

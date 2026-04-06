@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 
+interface ExtraContact {
+  nome: string
+  email: string
+  telefone: string
+  cargo: string
+}
+
 interface Client {
   id: string
   empresa: string
@@ -15,6 +22,26 @@ interface Client {
   cep?: string
   comentarios?: string
   created_at: string
+}
+
+// Serializa/deserializa contatos extras do campo comentarios
+function parseComentarios(raw?: string): { comments: string; contacts: ExtraContact[] } {
+  if (!raw) return { comments: '', contacts: [] }
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && ('contacts' in parsed || 'comments' in parsed)) {
+      return {
+        comments: parsed.comments ?? '',
+        contacts: Array.isArray(parsed.contacts) ? parsed.contacts : [],
+      }
+    }
+  } catch {}
+  return { comments: raw, contacts: [] }
+}
+
+function serializeComentarios(comments: string, contacts: ExtraContact[]): string {
+  if (contacts.length === 0) return comments
+  return JSON.stringify({ comments, contacts })
 }
 
 const ESTADOS_BR = [
@@ -54,8 +81,21 @@ export default function ClientesPage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [clientQuotations, setClientQuotations] = useState<{ quote_number: string; created_at: string; status: string; total: number }[]>([])
 
+  const [formComments, setFormComments] = useState('')
+  const [extraContacts, setExtraContacts] = useState<ExtraContact[]>([])
+
   const inputClass = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition'
   const labelClass = 'block text-xs font-medium text-gray-600 mb-1'
+
+  function addExtraContact() {
+    setExtraContacts(prev => [...prev, { nome: '', email: '', telefone: '', cargo: '' }])
+  }
+  function updateExtraContact(idx: number, field: keyof ExtraContact, value: string) {
+    setExtraContacts(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c))
+  }
+  function removeExtraContact(idx: number) {
+    setExtraContacts(prev => prev.filter((_, i) => i !== idx))
+  }
 
   useEffect(() => {
     fetch('/api/clients')
@@ -103,18 +143,23 @@ export default function ClientesPage() {
 
   function openNew() {
     setForm({ ...EMPTY })
+    setFormComments('')
+    setExtraContacts([])
     setEditingId(null)
     setShowForm(true)
     setSelectedClient(null)
   }
 
   function openEdit(c: Client) {
+    const { comments, contacts } = parseComentarios(c.comentarios)
     setForm({
       empresa: c.empresa ?? '', contato: c.contato ?? '', email: c.email ?? '',
       telefone: c.telefone ?? '', cnpj: c.cnpj ?? '', endereco: c.endereco ?? '',
       cidade: c.cidade ?? '', estado: c.estado ?? '', cep: c.cep ?? '',
       comentarios: c.comentarios ?? '',
     })
+    setFormComments(comments)
+    setExtraContacts(contacts)
     setEditingId(c.id)
     setShowForm(true)
     setSelectedClient(null)
@@ -127,11 +172,15 @@ export default function ClientesPage() {
     try {
       const url = editingId ? `/api/clients/${editingId}` : '/api/clients'
       const method = editingId ? 'PATCH' : 'POST'
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const payload = {
+        ...form,
+        comentarios: serializeComentarios(formComments, extraContacts.filter(c => c.nome || c.email)),
+      }
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
       if (!res.ok) { alert(`Erro: ${data.error}`); return }
       if (editingId) {
-        setClients(prev => prev.map(c => c.id === editingId ? { ...c, ...form } : c))
+        setClients(prev => prev.map(c => c.id === editingId ? { ...c, ...payload } : c))
       } else {
         setClients(prev => [...prev, data])
       }
@@ -337,10 +386,44 @@ export default function ClientesPage() {
                     </select>
                   </div>
                 </div>
+                {/* Contatos extras */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={labelClass}>Contatos adicionais</label>
+                    <button type="button" onClick={addExtraContact}
+                      className="text-xs font-semibold px-2 py-0.5 rounded border transition-colors hover:bg-blue-50"
+                      style={{ color: '#0C3460', borderColor: '#0C3460' }}>
+                      + Adicionar contato
+                    </button>
+                  </div>
+                  {extraContacts.length === 0 && (
+                    <p className="text-xs text-gray-400 italic">Nenhum contato adicional.</p>
+                  )}
+                  {extraContacts.map((ec, idx) => (
+                    <div key={idx} className="mb-2 p-2 border border-gray-200 rounded-lg bg-gray-50 space-y-1.5">
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                        <input value={ec.nome} onChange={e => updateExtraContact(idx, 'nome', e.target.value)}
+                          className={inputClass} placeholder="Nome" />
+                        <input value={ec.cargo} onChange={e => updateExtraContact(idx, 'cargo', e.target.value)}
+                          className={inputClass} placeholder="Cargo (ex: Comprador)" />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                        <input type="email" value={ec.email} onChange={e => updateExtraContact(idx, 'email', e.target.value)}
+                          className={inputClass} placeholder="E-mail" />
+                        <div className="flex gap-1">
+                          <input value={ec.telefone} onChange={e => updateExtraContact(idx, 'telefone', e.target.value)}
+                            className={inputClass} placeholder="Telefone" />
+                          <button type="button" onClick={() => removeExtraContact(idx)}
+                            className="px-2 text-red-400 hover:text-red-600 font-bold text-base shrink-0">×</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 <div>
                   <label className={labelClass}>Comentários</label>
-                  <textarea value={form.comentarios} onChange={e => setForm(f => ({ ...f, comentarios: e.target.value }))}
-                    rows={3} className={inputClass} placeholder="Observações sobre o cliente..." />
+                  <textarea value={formComments} onChange={e => setFormComments(e.target.value)}
+                    rows={2} className={inputClass} placeholder="Observações sobre o cliente..." />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button onClick={handleSave} disabled={saving}
@@ -369,7 +452,27 @@ export default function ClientesPage() {
                 {selectedClient.telefone && <p><span className="font-medium">Tel:</span> {selectedClient.telefone}</p>}
                 {selectedClient.cnpj && <p><span className="font-medium">CNPJ:</span> {selectedClient.cnpj}</p>}
                 {selectedClient.endereco && <p><span className="font-medium">End.:</span> {selectedClient.endereco}, {selectedClient.cidade}/{selectedClient.estado} {selectedClient.cep}</p>}
-                {selectedClient.comentarios && <p className="mt-2 p-2 bg-gray-50 rounded text-gray-600 italic">{selectedClient.comentarios}</p>}
+                {(() => {
+                  const { comments, contacts } = parseComentarios(selectedClient.comentarios)
+                  return <>
+                    {contacts.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-semibold text-gray-600 mb-1">Contatos adicionais:</p>
+                        <div className="space-y-1">
+                          {contacts.map((ec, i) => (
+                            <div key={i} className="p-2 bg-blue-50 rounded text-xs">
+                              <span className="font-semibold text-gray-800">{ec.nome}</span>
+                              {ec.cargo && <span className="text-gray-500 ml-1">· {ec.cargo}</span>}
+                              {ec.email && <p className="text-gray-600">{ec.email}</p>}
+                              {ec.telefone && <p className="text-gray-500">{ec.telefone}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {comments && <p className="mt-2 p-2 bg-gray-50 rounded text-gray-600 italic text-xs">{comments}</p>}
+                  </>
+                })()}
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-600 mb-2">Cotações ({clientQuotations.length})</p>

@@ -267,8 +267,19 @@ export default function CotacaoPage() {
   const [prazoValidade, setPrazoValidade] = useState((draft?.prazoValidade as string) ?? '30')
 
   // Clientes cadastrados
-  const [clientes, setClientes] = useState<Array<{ id: string; empresa: string; contato?: string; email?: string; telefone?: string; cnpj?: string; endereco?: string; cidade?: string; estado?: string; cep?: string }>>([])
+  interface ExtraContact { nome: string; email: string; telefone: string; cargo: string }
+  function parseComentariosCotacao(raw?: string): ExtraContact[] {
+    if (!raw) return []
+    try {
+      const p = JSON.parse(raw)
+      if (p && Array.isArray(p.contacts)) return p.contacts
+    } catch {}
+    return []
+  }
+
+  const [clientes, setClientes] = useState<Array<{ id: string; empresa: string; contato?: string; email?: string; telefone?: string; cnpj?: string; endereco?: string; cidade?: string; estado?: string; cep?: string; comentarios?: string }>>([])
   const [savingCliente, setSavingCliente] = useState(false)
+  const [clienteContatos, setClienteContatos] = useState<ExtraContact[]>([])
 
   // Filtros do combobox de produto
   const [filterTipo, setFilterTipo] = useState('')
@@ -422,6 +433,9 @@ export default function CotacaoPage() {
     } else {
       setCidade(c.cidade ?? '')
     }
+    // Carrega contatos extras
+    const extras = parseComentariosCotacao(c.comentarios)
+    setClienteContatos(extras)
   }
 
   async function handleSalvarCliente() {
@@ -959,6 +973,30 @@ export default function CotacaoPage() {
             </div>
           </div>
         </div>
+        {/* Seletor de contato adicional (aparece quando o cliente tem múltiplos contatos) */}
+        {clienteContatos.length > 0 && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs font-semibold text-blue-800 mb-2">Selecionar contato do cliente:</p>
+            <div className="flex flex-wrap gap-2">
+              {clienteContatos.map((ec, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    setContato(ec.nome)
+                    setEmailContato(ec.email)
+                    setTelefone(ec.telefone)
+                  }}
+                  className="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors hover:bg-blue-100"
+                  style={{ borderColor: '#0C3460', color: '#0C3460' }}
+                >
+                  {ec.nome}{ec.cargo ? ` · ${ec.cargo}` : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Linha 2: Contato (30%), E-mail (30%), Telefone (20%), CNPJ (20%) */}
         <div style={{ display: 'grid', gridTemplateColumns: '3fr 3fr 2fr 2fr', gap: '16px' }} className="mb-4">
           <div>

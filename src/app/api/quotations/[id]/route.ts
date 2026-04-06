@@ -8,15 +8,29 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { status } = body
+    const { status, logEntry } = body
 
     if (!status) {
       return NextResponse.json({ error: 'Campo "status" é obrigatório.' }, { status: 400 })
     }
 
+    // Busca totals atuais para preservar _log e outros metadados
+    const { data: current } = await supabaseServer
+      .from('quotations')
+      .select('totals')
+      .eq('id', id)
+      .single()
+
+    const existingTotals = (current?.totals as Record<string, unknown>) ?? {}
+    const existingLog = Array.isArray(existingTotals._log) ? existingTotals._log : []
+    const newTotals = {
+      ...existingTotals,
+      _log: logEntry ? [...existingLog, logEntry] : existingLog,
+    }
+
     const { data, error } = await supabaseServer
       .from('quotations')
-      .update({ status })
+      .update({ status, totals: newTotals })
       .eq('id', id)
       .select()
       .single()
