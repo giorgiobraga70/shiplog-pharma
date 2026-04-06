@@ -3,11 +3,16 @@ import { supabaseServer } from '@/lib/supabaseServer'
 
 // Extrai o nome do responsável de uma linha da tabela
 function extractResponsible(q: Record<string, unknown>): string {
-  // 1. Coluna dedicada (existe se o SQL foi rodado)
   if (q.responsible_name && typeof q.responsible_name === 'string') return q.responsible_name
-  // 2. Embutido no totals JSON (fallback sem SQL)
   const t = q.totals as Record<string, unknown> | null
   if (t?._r && typeof t._r === 'string') return t._r
+  return ''
+}
+
+// Extrai as notas internas embutidas no totals JSON
+function extractNotes(q: Record<string, unknown>): string {
+  const t = q.totals as Record<string, unknown> | null
+  if (t?._notes && typeof t._notes === 'string') return t._notes
   return ''
 }
 
@@ -25,6 +30,7 @@ export async function GET() {
     const enriched = rows.map((q: Record<string, unknown>) => ({
       ...q,
       responsible_name: extractResponsible(q),
+      internal_notes:   extractNotes(q),
     }))
 
     return NextResponse.json(enriched)
@@ -79,6 +85,7 @@ export async function POST(request: Request) {
       status = 'draft',
       created_by,
       responsible_name: responsibleFromClient,
+      internal_notes,
     } = body
 
     // Usa nome enviado pelo cliente; fallback via auth.admin se vier vazio
@@ -92,10 +99,11 @@ export async function POST(request: Request) {
       ? `${client_city}${client_state ? ' - ' + client_state : ''}`
       : null
 
-    // Embute o nome no totals JSON — funciona SEM precisar de nova coluna
+    // Embute metadados no totals JSON — funciona SEM precisar de novas colunas
     const totalsWithMeta = {
       ...(totals ?? {}),
-      _r: responsible_name || undefined,
+      _r:     responsible_name || undefined,
+      _notes: internal_notes   || undefined,
     }
 
     // ── Tenta com colunas novas (created_by, responsible_name) ───────────────

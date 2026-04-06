@@ -25,6 +25,7 @@ interface Quotation {
   status: QuotationStatus
   created_by?: string
   responsible_name?: string
+  internal_notes?: string
   items: Array<{
     description: string
     partNumber: string
@@ -285,6 +286,7 @@ export default function HistoricoPage() {
       pagamento:     q.payment_terms   ?? '50% no ato do pedido + 50% na entrega',
       prazo:         String(q.delivery_days  ?? 90),
       prazoValidade: String(q.validity_days  ?? 30),
+      notasInternas: q.internal_notes ?? '',
       savedItems: (q.items ?? []).map(item => ({
         partNumber: item.partNumber,
         qtyBoxes:   item.qtyBoxes,
@@ -490,6 +492,15 @@ export default function HistoricoPage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
+                          {q.internal_notes && (
+                            <span
+                              className="cursor-default"
+                              title={q.internal_notes}
+                              style={{ fontSize: '15px' }}
+                            >
+                              📝
+                            </span>
+                          )}
                           <button
                             onClick={() => handleVerCotacao(q)}
                             className="text-blue-600 hover:text-blue-900 transition-colors text-xs font-semibold underline"

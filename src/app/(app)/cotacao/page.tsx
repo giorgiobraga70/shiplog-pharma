@@ -286,6 +286,9 @@ export default function CotacaoPage() {
   // Desconto global sobre o total da cotação
   const [globalDiscount, setGlobalDiscount] = useState((draft?.globalDiscount as string) ?? '')
 
+  // Notas internas (não vai para o PDF)
+  const [notasInternas, setNotasInternas] = useState((draft?.notasInternas as string) ?? '')
+
   // Produtos selecionados
   const [selectedProductId, setSelectedProductId] = useState('')
   const [qtyBoxesInput, setQtyBoxesInput] = useState('')
@@ -382,7 +385,7 @@ export default function CotacaoPage() {
     saveDraft({
       empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, globalDiscount,
+      prazoValidade, pagamento, prazo, globalDiscount, notasInternas,
       savedItems: lineItems.map(li => ({
         partNumber: li.product.partNumber,
         qtyBoxes: li.qtyBoxes,
@@ -390,7 +393,7 @@ export default function CotacaoPage() {
     })
   }, [empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, globalDiscount, lineItems])
+      prazoValidade, pagamento, prazo, globalDiscount, notasInternas, lineItems])
 
   function handleNovaCotacao() {
     if (lineItems.length > 0 || empresa) {
@@ -670,6 +673,7 @@ export default function CotacaoPage() {
           validity_days: parseInt(prazoValidade) || 30,
           created_by: currentUserId || null,
           responsible_name: currentUserName || null,
+          internal_notes: notasInternas || null,
           items: lineItems.map((li) => ({
             description: li.product.description,
             partNumber: li.product.partNumber,
@@ -721,6 +725,7 @@ export default function CotacaoPage() {
       validity_days: 30,
       created_by: currentUserId || null,
       responsible_name: currentUserName || null,
+      internal_notes: notasInternas || null,
       items: lineItems.map((li) => ({
         description: li.product.description,
         partNumber: li.product.partNumber,
@@ -1276,6 +1281,24 @@ export default function CotacaoPage() {
             )}
           </table>
         </div>
+      </section>
+
+      {/* ── Notas Internas ───────────────────────────────────────────────── */}
+      <section className={cardClass}>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100 flex items-center gap-2">
+          <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Notas Internas
+          <span className="text-xs font-normal text-gray-400 ml-1">— visível apenas no histórico, não aparece no PDF</span>
+        </h2>
+        <textarea
+          value={notasInternas}
+          onChange={e => setNotasInternas(e.target.value)}
+          placeholder="Ex: Cliente pediu prazo maior. Aguardando aprovação do comprador. Negociação em andamento..."
+          rows={3}
+          className={`${inputClass} resize-y`}
+        />
       </section>
 
       {/* ── Resumo e Desconto Global ─────────────────────────────────────── */}
