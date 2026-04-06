@@ -19,6 +19,7 @@ interface PrintData {
   deliveryDays: number
   validityDays: number
   fornecedor?: string
+  clientNotes?: string | null
   items: Array<{
     description: string
     partNumber: string
@@ -375,6 +376,22 @@ ${innerHtml}
             <div><span style={{ color: '#64748B', fontWeight: 600 }}>Prazo de Entrega: </span>{data.deliveryDays} dias</div>
             <div><span style={{ color: '#64748B', fontWeight: 600 }}>Validade da Cotação: </span>{data.validityDays} dias</div>
           </div>
+
+          {/* ── Observações para o cliente ──────────────────────────────── */}
+          {data.clientNotes && (
+            <div style={{
+              marginTop: '6px',
+              backgroundColor: '#FFFBEB',
+              border: '1px solid #FCD34D',
+              borderRadius: '4px',
+              padding: '6px 10px',
+              fontSize: '9.5px',
+              color: '#78350F',
+            }}>
+              <div style={{ fontWeight: 700, marginBottom: '3px', color: '#92400E' }}>Observações:</div>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{data.clientNotes}</div>
+            </div>
+          )}
 
           {/* Legenda dos preços */}
           <div style={{ marginTop: '6px', fontSize: '8.5px', color: '#64748B', display: 'flex', gap: '16px' }}>

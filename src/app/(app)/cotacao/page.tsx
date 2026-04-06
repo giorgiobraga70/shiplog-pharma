@@ -289,6 +289,9 @@ export default function CotacaoPage() {
   // Notas internas (não vai para o PDF)
   const [notasInternas, setNotasInternas] = useState((draft?.notasInternas as string) ?? '')
 
+  // Observações para o cliente (aparece no PDF)
+  const [notasCliente, setNotasCliente] = useState((draft?.notasCliente as string) ?? '')
+
   // Produtos selecionados
   const [selectedProductId, setSelectedProductId] = useState('')
   const [qtyBoxesInput, setQtyBoxesInput] = useState('')
@@ -385,7 +388,7 @@ export default function CotacaoPage() {
     saveDraft({
       empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, globalDiscount, notasInternas,
+      prazoValidade, pagamento, prazo, globalDiscount, notasInternas, notasCliente,
       savedItems: lineItems.map(li => ({
         partNumber: li.product.partNumber,
         qtyBoxes: li.qtyBoxes,
@@ -393,7 +396,7 @@ export default function CotacaoPage() {
     })
   }, [empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, globalDiscount, notasInternas, lineItems])
+      prazoValidade, pagamento, prazo, globalDiscount, notasInternas, notasCliente, lineItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleNovaCotacao() {
     if (lineItems.length > 0 || empresa) {
@@ -755,6 +758,7 @@ export default function CotacaoPage() {
     const printData = {
       quoteNumber: quotationNumber,
       date: new Date().toLocaleDateString('pt-BR'),
+      clientNotes: notasCliente || null,
       clientCompany: empresa,
       clientCnpj: cnpj,
       clientEmail: emailContato,
@@ -1296,6 +1300,24 @@ export default function CotacaoPage() {
           value={notasInternas}
           onChange={e => setNotasInternas(e.target.value)}
           placeholder="Ex: Cliente pediu prazo maior. Aguardando aprovação do comprador. Negociação em andamento..."
+          rows={3}
+          className={`${inputClass} resize-y`}
+        />
+      </section>
+
+      {/* ── Observações para o Cliente ───────────────────────────────────── */}
+      <section className={cardClass}>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100 flex items-center gap-2">
+          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          Observações para o Cliente
+          <span className="text-xs font-normal text-blue-400 ml-1">— aparece no rodapé do PDF</span>
+        </h2>
+        <textarea
+          value={notasCliente}
+          onChange={e => setNotasCliente(e.target.value)}
+          placeholder="Ex: Preços sujeitos a alteração sem aviso prévio. Frete a combinar. Produto sujeito à disponibilidade de estoque..."
           rows={3}
           className={`${inputClass} resize-y`}
         />
