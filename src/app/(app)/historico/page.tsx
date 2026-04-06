@@ -268,6 +268,31 @@ export default function HistoricoPage() {
     window.location.href = '/cotacao'
   }
 
+  function handleDuplicarCotacao(q: Quotation) {
+    // Sem cotacao_editing_id → cotação page gera número novo
+    localStorage.removeItem('cotacao_editing_id')
+    localStorage.setItem('cotacao_draft_v2', JSON.stringify({
+      empresa:       q.client_company  ?? '',
+      contato:       q.client_contact  ?? '',
+      emailContato:  q.client_email    ?? '',
+      telefone:      q.client_phone    ?? '',
+      cnpj:          q.client_cnpj     ?? '',
+      endereco:      q.client_address  ?? '',
+      cidade:        q.client_city     ?? '',
+      estado:        q.client_state    ?? '',
+      cep:           q.client_cep      ?? '',
+      fornecedor:    q.supplier        ?? 'Four Star',
+      pagamento:     q.payment_terms   ?? '50% no ato do pedido + 50% na entrega',
+      prazo:         String(q.delivery_days  ?? 90),
+      prazoValidade: String(q.validity_days  ?? 30),
+      savedItems: (q.items ?? []).map(item => ({
+        partNumber: item.partNumber,
+        qtyBoxes:   item.qtyBoxes,
+      })),
+    }))
+    window.location.href = '/cotacao'
+  }
+
   function handleVerCotacao(q: Quotation) {
     const enderecoCompleto = [q.client_address, q.client_city, q.client_state, q.client_cep ? `CEP ${q.client_cep}` : null]
       .filter(Boolean).join(', ')
@@ -476,6 +501,13 @@ export default function HistoricoPage() {
                             className="text-green-700 hover:text-green-900 transition-colors text-xs font-semibold underline"
                           >
                             Editar
+                          </button>
+                          <button
+                            onClick={() => handleDuplicarCotacao(q)}
+                            className="text-purple-600 hover:text-purple-900 transition-colors text-xs font-semibold underline"
+                            title="Duplicar com novo número"
+                          >
+                            Duplicar
                           </button>
                           <button
                             onClick={() => handleDeletarCotacao(q)}
