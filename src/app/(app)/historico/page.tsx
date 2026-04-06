@@ -117,6 +117,20 @@ export default function HistoricoPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Ordenação da tabela
+  type SortKey = 'quote_number' | 'client_company' | 'responsible_name' | 'created_at' | 'status' | 'items' | 'total'
+  const [sortKey, setSortKey] = useState<SortKey>('created_at')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
   useEffect(() => {
     fetch('/api/quotations')
       .then(r => r.json())
@@ -160,7 +174,7 @@ export default function HistoricoPage() {
   }
 
   const filtered = useMemo(() => {
-    return quotations.filter(q => {
+    const list = quotations.filter(q => {
       const label = STATUS_LABEL[q.status] ?? 'Salva'
       const matchSearch =
         !search ||
@@ -170,7 +184,25 @@ export default function HistoricoPage() {
       const matchStatus = statusFilter === 'Todos' || label === statusFilter
       return matchSearch && matchStatus
     })
-  }, [quotations, search, statusFilter])
+
+    return [...list].sort((a, b) => {
+      let valA: string | number
+      let valB: string | number
+      switch (sortKey) {
+        case 'quote_number':    valA = a.quote_number ?? '';      valB = b.quote_number ?? '';      break
+        case 'client_company':  valA = a.client_company ?? '';    valB = b.client_company ?? '';    break
+        case 'responsible_name':valA = a.responsible_name ?? '';  valB = b.responsible_name ?? '';  break
+        case 'created_at':      valA = a.created_at ?? '';        valB = b.created_at ?? '';        break
+        case 'status':          valA = STATUS_ORDER.indexOf(a.status); valB = STATUS_ORDER.indexOf(b.status); break
+        case 'items':           valA = getItemCount(a);           valB = getItemCount(b);           break
+        case 'total':           valA = getTotal(a);               valB = getTotal(b);               break
+        default:                valA = ''; valB = ''
+      }
+      if (valA < valB) return sortDir === 'asc' ? -1 : 1
+      if (valA > valB) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [quotations, search, statusFilter, sortKey, sortDir])
 
   // ── Estatísticas por ano e por mês ──────────────────────────────────────────
   const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -404,13 +436,29 @@ export default function HistoricoPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: '#F9FAFB' }} className="border-b border-gray-200">
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Número</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Empresa</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Responsável</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Data</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Status</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Itens</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Total BRL</th>
+                {(
+                  [
+                    ['Número',       'quote_number'],
+                    ['Empresa',      'client_company'],
+                    ['Responsável',  'responsible_name'],
+                    ['Data',         'created_at'],
+                    ['Status',       'status'],
+                    ['Itens',        'items'],
+                    ['Total BRL',    'total'],
+                  ] as [string, SortKey][]
+                ).map(([label, key]) => (
+                  <th key={key} className="px-4 py-3 text-center text-xs font-semibold text-gray-600">
+                    <button
+                      onClick={() => handleSort(key)}
+                      className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors"
+                    >
+                      {label}
+                      <span className="text-gray-400" style={{ fontSize: '10px', lineHeight: 1 }}>
+                        {sortKey === key ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+                      </span>
+                    </button>
+                  </th>
+                ))}
                 <th className="px-4 py-3 w-20" />
               </tr>
             </thead>
