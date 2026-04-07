@@ -60,7 +60,7 @@ export default function SobrePage() {
       <CardSection icon="ℹ️" title="Sobre o Sistema">
         <p className="leading-relaxed">
           Sistema web de gerenciamento de cotações comerciais para produtos farmacêuticos,
-          desenvolvido para a <strong>CBB International</strong>. Permite criar, enviar e
+          desenvolvido para a <strong>SHIPLOG PHARMA</strong>. Permite criar, enviar e
           acompanhar cotações com clientes, gerenciar o catálogo de produtos e monitorar o
           pipeline de vendas.
         </p>
@@ -71,11 +71,11 @@ export default function SobrePage() {
         <dl className="space-y-2">
           <div className="flex gap-2">
             <dt className="font-medium w-28 shrink-0 text-gray-600">Empresa:</dt>
-            <dd>CBB International</dd>
+            <dd>SHIPLOG PHARMA</dd>
           </div>
           <div className="flex gap-2">
             <dt className="font-medium w-28 shrink-0 text-gray-600">Desenvolvimento:</dt>
-            <dd>CBB International, com auxílio de Claude (Anthropic)</dd>
+            <dd>Giorgio Braga, com auxílio de Claude (Anthropic)</dd>
           </div>
           <div className="flex gap-2">
             <dt className="font-medium w-28 shrink-0 text-gray-600">Versão:</dt>
@@ -100,7 +100,11 @@ export default function SobrePage() {
           </div>
           <div className="flex gap-2">
             <dt className="font-medium w-28 shrink-0 text-gray-600">Contato:</dt>
-            <dd>CBB International</dd>
+            <dd>
+              <a href="mailto:giorgio@shiplog.com.br" className="text-blue-700 hover:underline">
+                giorgio@shiplog.com.br
+              </a>
+            </dd>
           </div>
         </dl>
       </CardSection>
