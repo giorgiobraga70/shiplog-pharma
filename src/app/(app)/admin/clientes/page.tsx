@@ -84,6 +84,11 @@ export default function ClientesPage() {
   const [formComments, setFormComments] = useState('')
   const [extraContacts, setExtraContacts] = useState<ExtraContact[]>([])
 
+  // Edição inline do contato
+  const [editingContactId, setEditingContactId] = useState<string | null>(null)
+  const [editingContactValue, setEditingContactValue] = useState('')
+  const editingContactRef = useRef<HTMLInputElement>(null)
+
   const inputClass = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition'
   const labelClass = 'block text-xs font-medium text-gray-600 mb-1'
 
@@ -193,6 +198,34 @@ export default function ClientesPage() {
     const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' })
     if (res.ok) setClients(prev => prev.filter(c => c.id !== id))
     else alert('Erro ao excluir.')
+  }
+
+  function handleStartEditContact(e: React.MouseEvent, c: Client) {
+    e.stopPropagation()
+    setEditingContactId(c.id)
+    setEditingContactValue(c.contato ?? '')
+    setTimeout(() => editingContactRef.current?.select(), 30)
+  }
+
+  async function handleSaveContact(c: Client) {
+    const trimmed = editingContactValue.trim()
+    setEditingContactId(null)
+    if (trimmed === (c.contato ?? '').trim()) return
+    try {
+      const res = await fetch(`/api/clients/${c.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contato: trimmed }),
+      })
+      if (res.ok) {
+        setClients(prev => prev.map(x => x.id === c.id ? { ...x, contato: trimmed } : x))
+        if (selectedClient?.id === c.id) setSelectedClient(prev => prev ? { ...prev, contato: trimmed } : prev)
+      } else {
+        alert('Erro ao salvar contato.')
+      }
+    } catch {
+      alert('Erro ao salvar contato.')
+    }
   }
 
   async function handleSelectClient(c: Client) {
@@ -306,7 +339,30 @@ export default function ClientesPage() {
                     className={`border-b border-gray-100 cursor-pointer transition-colors ${selectedClient?.id === c.id ? 'bg-blue-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}
                     onClick={() => handleSelectClient(c)}>
                     <td className="px-4 py-3 font-medium text-gray-900">{c.empresa}</td>
-                    <td className="px-4 py-3 text-gray-600">{c.contato || '—'}</td>
+                    <td
+                      className="px-4 py-3 text-gray-600"
+                      onDoubleClick={e => handleStartEditContact(e, c)}
+                      title="Clique duplo para editar o contato"
+                    >
+                      {editingContactId === c.id ? (
+                        <input
+                          ref={editingContactRef}
+                          type="text"
+                          value={editingContactValue}
+                          onChange={e => setEditingContactValue(e.target.value)}
+                          onBlur={() => handleSaveContact(c)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); handleSaveContact(c) }
+                            if (e.key === 'Escape') { e.stopPropagation(); setEditingContactId(null) }
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          className="w-full px-2 py-0.5 rounded border border-blue-400 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          style={{ minWidth: '120px' }}
+                        />
+                      ) : (
+                        <span>{c.contato || <span className="text-gray-400 italic text-xs">—</span>}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-500">{c.cidade && c.estado ? `${c.cidade}/${c.estado}` : (c.cidade || c.estado || '—')}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>

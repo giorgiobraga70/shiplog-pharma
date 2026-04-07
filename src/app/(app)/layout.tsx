@@ -106,6 +106,7 @@ function Navbar() {
           {navLink('/admin/clientes', 'Clientes')}
           {navLink('/admin/produtos', 'Produtos')}
           {isAdmin && navLink('/admin/usuarios', 'Usuários')}
+          {navLink('/perfil', 'Meu Perfil')}
           {navLink('/ajuda', 'Ajuda')}
           {navLink('/sobre', 'Sobre')}
         </div>

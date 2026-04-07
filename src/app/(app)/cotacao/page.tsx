@@ -303,6 +303,12 @@ export default function CotacaoPage() {
   // Observações para o cliente (aparece no PDF)
   const [notasCliente, setNotasCliente] = useState((draft?.notasCliente as string) ?? '')
 
+  // Anexos da cotação
+  interface Attachment { name: string; path: string; url: string; size: number; type: string; at: string }
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // Produtos selecionados
   const [selectedProductId, setSelectedProductId] = useState('')
   const [qtyBoxesInput, setQtyBoxesInput] = useState('')
@@ -377,6 +383,11 @@ export default function CotacaoPage() {
             } else {
               setCidade(q.client_city ?? '')
             }
+            // Carrega anexos se existirem
+            const totalsRaw = (q as unknown as { totals?: { _attachments?: unknown[] } }).totals
+            if (Array.isArray(totalsRaw?._attachments)) {
+              setAttachments(totalsRaw._attachments as Attachment[])
+            }
             return // não recalcula número sequencial
           }
         }
@@ -408,6 +419,67 @@ export default function CotacaoPage() {
   }, [empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
       prazoValidade, pagamento, prazo, globalDiscount, notasInternas, notasCliente, lineItems]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleUploadFile(file: File) {
+    const qId = savedQuotationId
+    if (!qId) { alert('Salve a cotação primeiro antes de adicionar anexos.'); return }
+    if (file.size > 10 * 1024 * 1024) { alert('Arquivo muito grande. Máximo: 10 MB.'); return }
+    setUploadingFile(true)
+    try {
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : ''
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const path = `${qId}/${Date.now()}-${safeName}`
+      const { error } = await supabase.storage
+        .from('quotation-attachments')
+        .upload(path, file, { upsert: false })
+      if (error) { alert('Erro ao enviar arquivo: ' + error.message); return }
+      const { data: urlData } = supabase.storage.from('quotation-attachments').getPublicUrl(path)
+      const newAtt: Attachment = {
+        name: file.name,
+        path,
+        url: urlData.publicUrl,
+        size: file.size,
+        type: file.type || (ext ? `application/${ext}` : 'application/octet-stream'),
+        at: new Date().toISOString(),
+      }
+      const updated = [...attachments, newAtt]
+      setAttachments(updated)
+      await fetch(`/api/quotations/${qId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attachments: updated }),
+      })
+    } catch (e) {
+      alert('Erro inesperado ao enviar arquivo.')
+      console.error(e)
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleRemoveAttachment(att: Attachment) {
+    if (!confirm(`Remover o anexo "${att.name}"?`)) return
+    const qId = savedQuotationId
+    try {
+      await supabase.storage.from('quotation-attachments').remove([att.path])
+    } catch {}
+    const updated = attachments.filter(a => a.path !== att.path)
+    setAttachments(updated)
+    if (qId) {
+      await fetch(`/api/quotations/${qId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attachments: updated }),
+      })
+    }
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
 
   function handleNovaCotacao() {
     if (lineItems.length > 0 || empresa) {
@@ -1400,6 +1472,88 @@ export default function CotacaoPage() {
           rows={3}
           className={`${inputClass} resize-y`}
         />
+      </section>
+
+      {/* ── Anexos ───────────────────────────────────────────────────────── */}
+      <section className={cardClass}>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100 flex items-center gap-2">
+          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+          </svg>
+          Anexos
+          <span className="text-xs font-normal text-gray-400 ml-1">— fichas técnicas, imagens, documentos</span>
+        </h2>
+
+        {/* Upload */}
+        {savedQuotationId ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="file-upload"
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar"
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) handleUploadFile(file)
+                }}
+              />
+              <label
+                htmlFor="file-upload"
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 cursor-pointer transition-colors ${
+                  uploadingFile ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+                }`}
+                style={{ borderColor: '#0C3460', color: '#0C3460' }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                {uploadingFile ? 'Enviando...' : 'Selecionar arquivo'}
+              </label>
+              <span className="text-xs text-gray-400">PDF, imagens, Word, Excel, ZIP · máx. 10 MB</span>
+            </div>
+
+            {/* Lista de anexos */}
+            {attachments.length > 0 && (
+              <ul className="space-y-2">
+                {attachments.map((att, i) => (
+                  <li key={i} className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <a
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-sm text-blue-700 hover:underline truncate"
+                    >
+                      {att.name}
+                    </a>
+                    <span className="text-xs text-gray-400 flex-shrink-0">{formatFileSize(att.size)}</span>
+                    <button
+                      onClick={() => handleRemoveAttachment(att)}
+                      className="text-red-400 hover:text-red-700 transition-colors flex-shrink-0"
+                      title="Remover anexo"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {attachments.length === 0 && (
+              <p className="text-xs text-gray-400 italic">Nenhum arquivo anexado.</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 italic">
+            💡 Salve a cotação primeiro (botão &quot;Salvar&quot;) para habilitar o envio de anexos.
+          </p>
+        )}
       </section>
 
       {/* ── Resumo e Desconto Global ─────────────────────────────────────── */}

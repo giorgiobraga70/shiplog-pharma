@@ -16,6 +16,12 @@ function extractNotes(q: Record<string, unknown>): string {
   return ''
 }
 
+// Extrai anexos salvos no totals JSON
+function extractAttachments(q: Record<string, unknown>): unknown[] {
+  const t = q.totals as Record<string, unknown> | null
+  return Array.isArray(t?._attachments) ? (t._attachments as unknown[]) : []
+}
+
 export async function GET() {
   try {
     const { data, error } = await supabaseServer
@@ -31,6 +37,7 @@ export async function GET() {
       ...q,
       responsible_name: extractResponsible(q),
       internal_notes:   extractNotes(q),
+      attachments:      extractAttachments(q),
     }))
 
     return NextResponse.json(enriched)

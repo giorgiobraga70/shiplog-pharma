@@ -26,6 +26,7 @@ interface Quotation {
   created_by?: string
   responsible_name?: string
   internal_notes?: string
+  attachments?: Array<{ name: string; url: string; size: number; type: string; at: string }>
   items: Array<{
     description: string
     partNumber: string
@@ -137,6 +138,10 @@ export default function HistoricoPage() {
   const [editingCompanyValue, setEditingCompanyValue] = useState('')
   const editingCompanyRef = useRef<HTMLInputElement>(null)
 
+  // Filtro por período
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
   // Ordenação da tabela
   type SortKey = 'quote_number' | 'client_company' | 'responsible_name' | 'created_at' | 'status' | 'items' | 'total'
   const [sortKey, setSortKey] = useState<SortKey>('created_at')
@@ -203,7 +208,10 @@ export default function HistoricoPage() {
         (q.client_company ?? '').toLowerCase().includes(search.toLowerCase()) ||
         (q.responsible_name ?? '').toLowerCase().includes(search.toLowerCase())
       const matchStatus = statusFilter === 'Todos' || label === statusFilter
-      return matchSearch && matchStatus
+      const qDate = q.created_at ? q.created_at.slice(0, 10) : ''
+      const matchFrom = !dateFrom || qDate >= dateFrom
+      const matchTo   = !dateTo   || qDate <= dateTo
+      return matchSearch && matchStatus && matchFrom && matchTo
     })
 
     return [...list].sort((a, b) => {
@@ -540,6 +548,30 @@ export default function HistoricoPage() {
               </button>
             ))}
           </div>
+          {/* Filtro por período */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 whitespace-nowrap">De</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="px-2 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition"
+            />
+            <label className="text-xs text-gray-500 whitespace-nowrap">até</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="px-2 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo('') }}
+                className="text-xs text-gray-400 hover:text-gray-700 transition-colors px-1"
+                title="Limpar período"
+              >✕</button>
+            )}
+          </div>
         </div>
 
         {/* Tabela de dados */}
@@ -694,6 +726,20 @@ export default function HistoricoPage() {
                               style={{ fontSize: '15px' }}
                             >
                               📝
+                            </span>
+                          )}
+                          {q.attachments && q.attachments.length > 0 && (
+                            <span className="relative group cursor-default" style={{ fontSize: '15px' }}>
+                              📎
+                              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-50 min-w-[180px]">
+                                <p className="text-xs font-semibold text-gray-600 mb-1">{q.attachments.length} anexo{q.attachments.length > 1 ? 's' : ''}</p>
+                                {q.attachments.map((a, i) => (
+                                  <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
+                                    className="block text-xs text-blue-700 hover:underline truncate max-w-[180px]">
+                                    {a.name}
+                                  </a>
+                                ))}
+                              </span>
                             </span>
                           )}
                           <button

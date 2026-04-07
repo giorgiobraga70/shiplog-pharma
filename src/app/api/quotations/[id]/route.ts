@@ -8,13 +8,12 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { status, logEntry, client_company } = body
+    const { status, logEntry, client_company, attachments } = body
 
-    if (!status && client_company === undefined) {
+    if (!status && client_company === undefined && attachments === undefined) {
       return NextResponse.json({ error: 'Nenhum campo para atualizar.' }, { status: 400 })
     }
 
-    // Monta objeto de atualização dinamicamente
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateObj: Record<string, any> = {}
 
@@ -22,8 +21,8 @@ export async function PATCH(
       updateObj.client_company = client_company
     }
 
-    if (status) {
-      // Busca totals atuais para preservar _log e outros metadados
+    // Status e/ou anexos precisam atualizar o campo totals (JSONB)
+    if (status || attachments !== undefined) {
       const { data: current } = await supabaseServer
         .from('quotations')
         .select('totals')
@@ -32,11 +31,19 @@ export async function PATCH(
 
       const existingTotals = (current?.totals as Record<string, unknown>) ?? {}
       const existingLog = Array.isArray(existingTotals._log) ? existingTotals._log : []
-      updateObj.status = status
-      updateObj.totals = {
-        ...existingTotals,
-        _log: logEntry ? [...existingLog, logEntry] : existingLog,
+
+      const newTotals: Record<string, unknown> = { ...existingTotals }
+
+      if (status) {
+        updateObj.status = status
+        newTotals._log = logEntry ? [...existingLog, logEntry] : existingLog
       }
+
+      if (attachments !== undefined) {
+        newTotals._attachments = attachments
+      }
+
+      updateObj.totals = newTotals
     }
 
     const { data, error } = await supabaseServer
