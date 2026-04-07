@@ -7,6 +7,8 @@ export default function PerfilPage() {
   const [email, setEmail] = useState('')
   const [nome, setNome] = useState('')
   const [nomeOriginal, setNomeOriginal] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [telefoneOriginal, setTelefoneOriginal] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
 
   const [senhaAtual, setSenhaAtual] = useState('')
@@ -32,12 +34,15 @@ export default function PerfilPage() {
       try {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('nome')
+          .select('nome, telefone')
           .eq('id', user.id)
           .single()
         const n = profile?.nome ?? ''
+        const t = (profile as { telefone?: string } | null)?.telefone ?? ''
         setNome(n)
         setNomeOriginal(n)
+        setTelefone(t)
+        setTelefoneOriginal(t)
       } catch {}
       setLoading(false)
     }
@@ -52,13 +57,14 @@ export default function PerfilPage() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ nome: nome.trim() })
+        .update({ nome: nome.trim(), telefone: telefone.trim() })
         .eq('id', userId)
       if (error) {
-        setMsgNome({ type: 'err', text: 'Erro ao salvar nome: ' + error.message })
+        setMsgNome({ type: 'err', text: 'Erro ao salvar: ' + error.message })
       } else {
         setNomeOriginal(nome.trim())
-        setMsgNome({ type: 'ok', text: 'Nome atualizado com sucesso!' })
+        setTelefoneOriginal(telefone.trim())
+        setMsgNome({ type: 'ok', text: 'Dados atualizados com sucesso!' })
       }
     } catch {
       setMsgNome({ type: 'err', text: 'Erro inesperado.' })
@@ -153,11 +159,22 @@ export default function PerfilPage() {
               onChange={e => setNome(e.target.value)}
               placeholder="Seu nome"
               className={inputClass}
-              onKeyDown={e => e.key === 'Enter' && handleSaveNome()}
             />
             <p className="text-xs text-gray-400 mt-1">
               Este nome aparece como Responsável nas cotações.
             </p>
+          </div>
+
+          <div>
+            <label className={labelClass}>Telefone</label>
+            <input
+              type="tel"
+              value={telefone}
+              onChange={e => setTelefone(e.target.value)}
+              placeholder="(11) 99999-9999"
+              className={inputClass}
+              onKeyDown={e => e.key === 'Enter' && handleSaveNome()}
+            />
           </div>
 
           {msgNome && (
@@ -172,11 +189,11 @@ export default function PerfilPage() {
 
           <button
             onClick={handleSaveNome}
-            disabled={savingNome || nome.trim() === nomeOriginal}
+            disabled={savingNome || (nome.trim() === nomeOriginal && telefone.trim() === telefoneOriginal)}
             className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-50"
             style={{ backgroundColor: '#0C3460' }}
           >
-            {savingNome ? 'Salvando...' : 'Salvar nome'}
+            {savingNome ? 'Salvando...' : 'Salvar dados'}
           </button>
         </div>
 
