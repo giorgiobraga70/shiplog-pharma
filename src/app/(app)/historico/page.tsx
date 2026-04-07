@@ -132,6 +132,11 @@ export default function HistoricoPage() {
   // Log expandido
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
 
+  // Edição inline de Empresa
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null)
+  const [editingCompanyValue, setEditingCompanyValue] = useState('')
+  const editingCompanyRef = useRef<HTMLInputElement>(null)
+
   // Ordenação da tabela
   type SortKey = 'quote_number' | 'client_company' | 'responsible_name' | 'created_at' | 'status' | 'items' | 'total'
   const [sortKey, setSortKey] = useState<SortKey>('created_at')
@@ -341,6 +346,35 @@ export default function HistoricoPage() {
       })),
     }))
     window.location.href = '/cotacao'
+  }
+
+  function handleStartEditCompany(e: React.MouseEvent, q: Quotation) {
+    e.stopPropagation()
+    setEditingCompanyId(q.id)
+    setEditingCompanyValue(q.client_company ?? '')
+    setTimeout(() => {
+      editingCompanyRef.current?.select()
+    }, 30)
+  }
+
+  async function handleSaveCompany(q: Quotation) {
+    const trimmed = editingCompanyValue.trim()
+    setEditingCompanyId(null)
+    if (trimmed === (q.client_company ?? '').trim()) return // sem mudança
+    try {
+      const res = await fetch(`/api/quotations/${q.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_company: trimmed }),
+      })
+      if (res.ok) {
+        setQuotations(prev => prev.map(x => x.id === q.id ? { ...x, client_company: trimmed } : x))
+      } else {
+        alert('Erro ao salvar nome da empresa.')
+      }
+    } catch {
+      alert('Erro ao salvar nome da empresa.')
+    }
   }
 
   function handleVerCotacao(q: Quotation) {
@@ -567,7 +601,30 @@ export default function HistoricoPage() {
                     <tr className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer ${isLogOpen ? 'bg-blue-50' : ''}`}
                       onClick={() => setExpandedLogId(isLogOpen ? null : q.id)}>
                       <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-gray-700">{q.quote_number}</td>
-                      <td className="px-4 py-3 text-center text-gray-900 font-medium">{q.client_company}</td>
+                      <td
+                        className="px-4 py-3 text-center text-gray-900 font-medium"
+                        onDoubleClick={e => handleStartEditCompany(e, q)}
+                        title="Clique duplo para editar"
+                      >
+                        {editingCompanyId === q.id ? (
+                          <input
+                            ref={editingCompanyRef}
+                            type="text"
+                            value={editingCompanyValue}
+                            onChange={e => setEditingCompanyValue(e.target.value)}
+                            onBlur={() => handleSaveCompany(q)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') { e.preventDefault(); handleSaveCompany(q) }
+                              if (e.key === 'Escape') { e.stopPropagation(); setEditingCompanyId(null) }
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full px-2 py-0.5 rounded border border-blue-400 text-sm text-gray-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            style={{ minWidth: '140px' }}
+                          />
+                        ) : (
+                          <span>{q.client_company || <span className="text-gray-400 italic text-xs">—</span>}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-center text-gray-600 text-xs">{firstWord(q.responsible_name)}</td>
                       <td className="px-4 py-3 text-center text-xs">
                         <span className="text-gray-500">{formatDateBR(q.created_at)}</span>

@@ -8,29 +8,40 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { status, logEntry } = body
+    const { status, logEntry, client_company } = body
 
-    if (!status) {
-      return NextResponse.json({ error: 'Campo "status" é obrigatório.' }, { status: 400 })
+    if (!status && client_company === undefined) {
+      return NextResponse.json({ error: 'Nenhum campo para atualizar.' }, { status: 400 })
     }
 
-    // Busca totals atuais para preservar _log e outros metadados
-    const { data: current } = await supabaseServer
-      .from('quotations')
-      .select('totals')
-      .eq('id', id)
-      .single()
+    // Monta objeto de atualização dinamicamente
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateObj: Record<string, any> = {}
 
-    const existingTotals = (current?.totals as Record<string, unknown>) ?? {}
-    const existingLog = Array.isArray(existingTotals._log) ? existingTotals._log : []
-    const newTotals = {
-      ...existingTotals,
-      _log: logEntry ? [...existingLog, logEntry] : existingLog,
+    if (client_company !== undefined) {
+      updateObj.client_company = client_company
+    }
+
+    if (status) {
+      // Busca totals atuais para preservar _log e outros metadados
+      const { data: current } = await supabaseServer
+        .from('quotations')
+        .select('totals')
+        .eq('id', id)
+        .single()
+
+      const existingTotals = (current?.totals as Record<string, unknown>) ?? {}
+      const existingLog = Array.isArray(existingTotals._log) ? existingTotals._log : []
+      updateObj.status = status
+      updateObj.totals = {
+        ...existingTotals,
+        _log: logEntry ? [...existingLog, logEntry] : existingLog,
+      }
     }
 
     const { data, error } = await supabaseServer
       .from('quotations')
-      .update({ status, totals: newTotals })
+      .update(updateObj)
       .eq('id', id)
       .select()
       .single()
