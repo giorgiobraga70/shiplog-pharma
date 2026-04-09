@@ -292,6 +292,8 @@ export default function CotacaoPage() {
   const [pagamento, setPagamento] = useState((draft?.pagamento as string) ?? '50% no ato do pedido + 50% na entrega')
   const [prazo, setPrazo] = useState((draft?.prazo as string) ?? '90')
   const [usdBrl, setUsdBrl] = useState((draft?.usdBrl as string) ?? '')
+  const [usdBrlAuto, setUsdBrlAuto] = useState('')   // taxa buscada automaticamente
+  const [fetchingRate, setFetchingRate] = useState(false)
   const [localEntrega, setLocalEntrega] = useState((draft?.localEntrega as string) ?? 'Armazém Shiplog Hortolândia')
   const [freteEntrega, setFreteEntrega] = useState((draft?.freteEntrega as string) ?? '')
 
@@ -573,6 +575,24 @@ export default function CotacaoPage() {
     }
     setLineItems(restored)
   }
+
+  // Busca taxa USD automática ao carregar (AwesomeAPI — sem chave, grátis)
+  useEffect(() => {
+    setFetchingRate(true)
+    fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
+      .then(r => r.json())
+      .then(data => {
+        const bid = data?.USDBRL?.bid
+        if (bid) {
+          const formatted = parseFloat(bid).toFixed(2).replace('.', ',')
+          setUsdBrlAuto(formatted)
+          // Só preenche automaticamente se o campo ainda estiver vazio
+          setUsdBrl(prev => prev === '' ? formatted : prev)
+        }
+      })
+      .catch(() => {}) // falha silenciosa — usuário pode digitar manualmente
+      .finally(() => setFetchingRate(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -1192,22 +1212,50 @@ export default function CotacaoPage() {
           <div>
             <label className={labelClass}>
               Taxa USD (R$)
-              {!usdBrl && <span className="text-red-400 ml-1 font-normal">*</span>}
+              {fetchingRate && <span className="text-blue-400 ml-1 font-normal text-xs">buscando…</span>}
+              {!fetchingRate && !usdBrl && <span className="text-red-400 ml-1 font-normal">*</span>}
+              {!fetchingRate && usdBrlAuto && usdBrl === usdBrlAuto && (
+                <span className="text-green-600 ml-1 font-normal text-xs">automática</span>
+              )}
+              {!fetchingRate && usdBrlAuto && usdBrl !== usdBrlAuto && usdBrl !== '' && (
+                <span className="text-amber-600 ml-1 font-normal text-xs">manual</span>
+              )}
             </label>
-            <input
-              type="text"
-              value={usdBrl}
-              onChange={e => {
-                setUsdBrl(e.target.value)
-                const rate = parseFloat(e.target.value.replace(',', '.')) || 1
-                setLineItems(prev => prev.map(li => ({
-                  ...li,
-                  breakdown: applyDiscount(buildBreakdown(li.product, li.qtyBoxes, fornecedor, rate), li.discount),
-                })))
-              }}
-              placeholder="Ex: 5.85"
-              className={`${inputClass} font-mono`}
-            />
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={usdBrl}
+                onChange={e => {
+                  setUsdBrl(e.target.value)
+                  const rate = parseFloat(e.target.value.replace(',', '.')) || 1
+                  setLineItems(prev => prev.map(li => ({
+                    ...li,
+                    breakdown: applyDiscount(buildBreakdown(li.product, li.qtyBoxes, fornecedor, rate), li.discount),
+                  })))
+                }}
+                placeholder={fetchingRate ? 'Buscando…' : 'Ex: 5,85'}
+                className={`${inputClass} font-mono`}
+                style={{ flex: 1 }}
+              />
+              {usdBrlAuto && usdBrl !== usdBrlAuto && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsdBrl(usdBrlAuto)
+                    const rate = parseFloat(usdBrlAuto.replace(',', '.')) || 1
+                    setLineItems(prev => prev.map(li => ({
+                      ...li,
+                      breakdown: applyDiscount(buildBreakdown(li.product, li.qtyBoxes, fornecedor, rate), li.discount),
+                    })))
+                  }}
+                  className="px-2 rounded-lg border border-gray-200 text-gray-500 hover:text-blue-700 hover:border-blue-400 transition-colors text-sm"
+                  title={`Voltar para taxa automática (R$ ${usdBrlAuto})`}
+                >↺</button>
+              )}
+            </div>
+            {usdBrlAuto && usdBrl !== usdBrlAuto && (
+              <p className="text-xs text-gray-400 mt-0.5">Atual: R$ {usdBrlAuto}</p>
+            )}
           </div>
           <div>
             <label className={labelClass}>Fornecedor</label>
