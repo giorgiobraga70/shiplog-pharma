@@ -54,7 +54,7 @@ interface DisplayPrices {
 
 function fmtBrl(v: number | null | undefined): string {
   if (v === null || v === undefined || isNaN(v)) return '—'
-  return `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `USD ${v.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
 }
 
 function getDisplayPrices(p: DbProduct, fornecedor: string): DisplayPrices {

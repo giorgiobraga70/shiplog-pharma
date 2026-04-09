@@ -40,14 +40,15 @@ function applyDiscount(bd: PricingBreakdown, discount: number): PricingBreakdown
   }
 }
 
-function buildBreakdown(product: ExtProduct, qtyBoxes: number, fornecedor: string): PricingBreakdown {
-  const m = fornecedor === 'Munan'
-  const unCI  = m ? (product.un_cimp_cipi_munan   ?? 0) : (product.un_cimp_cipi_fourstar   ?? 0)
-  const cxCI  = m ? (product.cx_cimp_cipi_munan   ?? 0) : (product.cx_cimp_cipi_fourstar   ?? 0)
-  const unSI  = m ? (product.un_cimp_sipi_munan   ?? 0) : (product.un_cimp_sipi_fourstar   ?? 0)
-  const cxSI  = m ? (product.cx_cimp_sipi_munan   ?? 0) : (product.cx_cimp_sipi_fourstar   ?? 0)
-  const unSIm = m ? (product.un_simp_munan        ?? 0) : (product.un_simp_fourstar        ?? 0)
-  const cxSIm = m ? (product.cx_simp_munan        ?? 0) : (product.cx_simp_fourstar        ?? 0)
+function buildBreakdown(product: ExtProduct, qtyBoxes: number, fornecedor: string, usdBrl = 1): PricingBreakdown {
+  const m    = fornecedor === 'Munan'
+  const rate = usdBrl > 0 ? usdBrl : 1
+  const unCI  = (m ? (product.un_cimp_cipi_munan   ?? 0) : (product.un_cimp_cipi_fourstar   ?? 0)) * rate
+  const cxCI  = (m ? (product.cx_cimp_cipi_munan   ?? 0) : (product.cx_cimp_cipi_fourstar   ?? 0)) * rate
+  const unSI  = (m ? (product.un_cimp_sipi_munan   ?? 0) : (product.un_cimp_sipi_fourstar   ?? 0)) * rate
+  const cxSI  = (m ? (product.cx_cimp_sipi_munan   ?? 0) : (product.cx_cimp_sipi_fourstar   ?? 0)) * rate
+  const unSIm = (m ? (product.un_simp_munan        ?? 0) : (product.un_simp_fourstar        ?? 0)) * rate
+  const cxSIm = (m ? (product.cx_simp_munan        ?? 0) : (product.cx_simp_fourstar        ?? 0)) * rate
   return {
     productId: product.id,
     description: product.description,
@@ -113,6 +114,7 @@ interface HistoricoItem {
   client_state?: string
   client_cep?: string
   supplier?: string
+  usd_brl?: number
   payment_terms?: string
   delivery_days?: number
   validity_days?: number
@@ -289,6 +291,7 @@ export default function CotacaoPage() {
   // Condições comerciais
   const [pagamento, setPagamento] = useState((draft?.pagamento as string) ?? '50% no ato do pedido + 50% na entrega')
   const [prazo, setPrazo] = useState((draft?.prazo as string) ?? '90')
+  const [usdBrl, setUsdBrl] = useState((draft?.usdBrl as string) ?? '')
 
   // Produtos do banco
   const [products, setProducts] = useState<ExtProduct[]>([])
@@ -378,6 +381,7 @@ export default function CotacaoPage() {
             setPagamento(q.payment_terms ?? '50% no ato do pedido + 50% na entrega')
             setPrazo(String(q.delivery_days ?? 90))
             setFornecedor(q.supplier ?? 'Four Star')
+            if (q.usd_brl) setUsdBrl(String(q.usd_brl))
             if (q.client_state) {
               loadCidades(q.client_state).then(() => setCidade(q.client_city ?? ''))
             } else {
@@ -410,7 +414,7 @@ export default function CotacaoPage() {
     saveDraft({
       empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, globalDiscount, notasInternas, notasCliente,
+      prazoValidade, pagamento, prazo, usdBrl, globalDiscount, notasInternas, notasCliente,
       savedItems: lineItems.map(li => ({
         partNumber: li.product.partNumber,
         qtyBoxes: li.qtyBoxes,
@@ -418,7 +422,7 @@ export default function CotacaoPage() {
     })
   }, [empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, globalDiscount, notasInternas, notasCliente, lineItems]) // eslint-disable-line react-hooks/exhaustive-deps
+      prazoValidade, pagamento, prazo, usdBrl, globalDiscount, notasInternas, notasCliente, lineItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleUploadFile(file: File) {
     const qId = savedQuotationId
@@ -556,11 +560,12 @@ export default function CotacaoPage() {
     else setCidade(q.client_city ?? '')
     // Restaurar itens da cotação
     const fornecedorAtual = q.supplier ?? 'Four Star'
+    const rateAtual = q.usd_brl && q.usd_brl > 0 ? q.usd_brl : (parseFloat(usdBrl.replace(',', '.')) || 1)
     const restored: LineItem[] = []
     for (const si of (q.items ?? [])) {
       const product = products.find(p => p.partNumber === si.partNumber)
       if (product) {
-        const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
+        const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual, rateAtual)
         restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
       }
     }
@@ -626,11 +631,12 @@ export default function CotacaoPage() {
       const q = historico.find(h => h.id === editingIdOnLoad)
       if (!q?.items?.length) { itemsRestoredRef.current = true; return }
       const fornecedorAtual = q.supplier ?? 'Four Star'
+      const rateAtual = q.usd_brl && q.usd_brl > 0 ? q.usd_brl : (parseFloat(usdBrl.replace(',', '.')) || 1)
       const restored: LineItem[] = []
       for (const si of q.items) {
         const product = products.find(p => p.partNumber === si.partNumber)
         if (product) {
-          const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
+          const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual, rateAtual)
           restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
         }
       }
@@ -642,11 +648,12 @@ export default function CotacaoPage() {
       const savedItems = saved?.savedItems as Array<{ partNumber: string; qtyBoxes: number }> | undefined
       if (savedItems && savedItems.length > 0) {
         const fornecedorAtual = (saved?.fornecedor as string) ?? 'Four Star'
+        const rateRascunho = parseFloat(((saved?.usdBrl as string) ?? usdBrl).replace(',', '.')) || 1
         const restored: LineItem[] = []
         for (const si of savedItems) {
           const product = products.find(p => p.partNumber === si.partNumber)
           if (product) {
-            const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual)
+            const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual, rateRascunho)
             restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
           }
         }
@@ -723,7 +730,8 @@ export default function CotacaoPage() {
     if (!product) return
 
     const discount = parseFloat(discountInput.replace(',', '.')) || 0
-    const rawBreakdown = buildBreakdown(product, qty, fornecedor)
+    const rate = parseFloat(usdBrl.replace(',', '.')) || 1
+    const rawBreakdown = buildBreakdown(product, qty, fornecedor, rate)
     const breakdown = applyDiscount(rawBreakdown, discount)
 
     setLineItems((prev) => [
@@ -741,18 +749,20 @@ export default function CotacaoPage() {
 
   function handleUpdateQty(id: string, newBoxes: number) {
     if (!newBoxes || newBoxes <= 0) return
+    const rate = parseFloat(usdBrl.replace(',', '.')) || 1
     setLineItems(prev => prev.map(li => {
       if (li.id !== id) return li
-      const rawBreakdown = buildBreakdown(li.product, newBoxes, fornecedor)
+      const rawBreakdown = buildBreakdown(li.product, newBoxes, fornecedor, rate)
       const breakdown = applyDiscount(rawBreakdown, li.discount)
       return { ...li, qtyBoxes: newBoxes, breakdown }
     }))
   }
 
   function handleUpdateDiscount(id: string, newDiscount: number) {
+    const rate = parseFloat(usdBrl.replace(',', '.')) || 1
     setLineItems(prev => prev.map(li => {
       if (li.id !== id) return li
-      const rawBreakdown = buildBreakdown(li.product, li.qtyBoxes, fornecedor)
+      const rawBreakdown = buildBreakdown(li.product, li.qtyBoxes, fornecedor, rate)
       const breakdown = applyDiscount(rawBreakdown, newDiscount)
       return { ...li, discount: newDiscount, breakdown }
     }))
@@ -775,7 +785,7 @@ export default function CotacaoPage() {
           client_state: estado,
           client_cep: cep,
           supplier: fornecedor,
-          usd_brl: 5.25,
+          usd_brl: parseFloat(usdBrl.replace(',', '.')) || null,
           payment_terms: pagamento,
           delivery_days: parseInt(prazo) || 90,
           validity_days: parseInt(prazoValidade) || 30,
@@ -873,7 +883,7 @@ export default function CotacaoPage() {
       clientCity: cidade,
       clientState: estado,
       clientCep: cep,
-      usdBrl: 5.25,
+      usdBrl: parseFloat(usdBrl.replace(',', '.')) || 0,
       paymentTerms: pagamento,
       deliveryDays: parseInt(prazo) || 90,
       validityDays: parseInt(prazoValidade) || 30,
@@ -1128,8 +1138,8 @@ export default function CotacaoPage() {
               placeholder="00000-000" className={inputClass} />
           </div>
         </div>
-        {/* Linha 4: Condições de Pagamento (40%), Prazo Entrega (20%), Prazo Validade (20%), Fornecedor (20%) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '16px' }}>
+        {/* Linha 4: Condições de Pagamento, Prazo Entrega, Prazo Validade, Taxa USD, Fornecedor */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 0.9fr 1fr', gap: '16px' }}>
           <div>
             <label className={labelClass}>Condições de pagamento</label>
             <input type="text" value={pagamento} onChange={(e) => setPagamento(e.target.value)}
@@ -1154,14 +1164,36 @@ export default function CotacaoPage() {
             </select>
           </div>
           <div>
+            <label className={labelClass}>
+              Taxa USD (R$)
+              {!usdBrl && <span className="text-red-400 ml-1 font-normal">*</span>}
+            </label>
+            <input
+              type="text"
+              value={usdBrl}
+              onChange={e => {
+                setUsdBrl(e.target.value)
+                // Recalcula itens existentes com a nova taxa
+                const rate = parseFloat(e.target.value.replace(',', '.')) || 1
+                setLineItems(prev => prev.map(li => ({
+                  ...li,
+                  breakdown: applyDiscount(buildBreakdown(li.product, li.qtyBoxes, fornecedor, rate), li.discount),
+                })))
+              }}
+              placeholder="Ex: 5.85"
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+          <div>
             <label className={labelClass}>Fornecedor</label>
             <select value={fornecedor} onChange={(e) => {
               const f = e.target.value
               setFornecedor(f)
               // Recalcula preços dos itens já adicionados com o novo fornecedor
+              const rate = parseFloat(usdBrl.replace(',', '.')) || 1
               setLineItems(prev => prev.map(li => ({
                 ...li,
-                breakdown: buildBreakdown(li.product, li.qtyBoxes, f),
+                breakdown: applyDiscount(buildBreakdown(li.product, li.qtyBoxes, f, rate), li.discount),
               })))
             }} className={inputClass}>
               <option value="Four Star">Four Star</option>

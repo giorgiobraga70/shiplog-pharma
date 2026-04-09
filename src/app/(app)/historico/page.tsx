@@ -48,6 +48,7 @@ interface Quotation {
     totalSIpiBrl?: number
     totalSImpBrl?: number
   }> | null
+  usd_brl?: number | null
   totals: {
     grandTotalBrl: number
     grandTotalSIpiBrl?: number
@@ -398,7 +399,7 @@ export default function HistoricoPage() {
       clientContact: q.client_contact  ?? '',
       clientPhone:   q.client_phone    ?? '',
       clientAddress: enderecoCompleto,
-      usdBrl:        5.25,
+      usdBrl:        q.usd_brl ?? 0,
       paymentTerms:  q.payment_terms   ?? '',
       deliveryDays:  q.delivery_days   ?? 90,
       validityDays:  q.validity_days   ?? 30,
