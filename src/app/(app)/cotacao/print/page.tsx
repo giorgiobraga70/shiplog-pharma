@@ -15,6 +15,8 @@ interface PrintData {
   clientState?: string
   clientCep?: string
   usdBrl: number
+  localEntrega?: string
+  freteEntrega?: number
   paymentTerms: string
   deliveryDays: number
   validityDays: number
@@ -370,11 +372,30 @@ ${innerHtml}
           {/* ── Condições comerciais (rodapé) ───────────────────────────── */}
           <div style={{
             backgroundColor: '#F9FAFB', border: '1px solid #E2E8F0', borderRadius: '4px',
-            padding: '6px 10px', fontSize: '10px', display: 'flex', gap: '32px',
+            padding: '6px 10px', fontSize: '10px',
           }}>
-            <div><span style={{ color: '#64748B', fontWeight: 600 }}>Condições de Pagamento: </span>{data.paymentTerms}</div>
-            <div><span style={{ color: '#64748B', fontWeight: 600 }}>Prazo de Entrega: </span>{data.deliveryDays} dias</div>
-            <div><span style={{ color: '#64748B', fontWeight: 600 }}>Validade da Cotação: </span>{data.validityDays} dias</div>
+            {/* Linha 1: pagamento, prazo, validade */}
+            <div style={{ display: 'flex', gap: '32px', marginBottom: '4px' }}>
+              <div><span style={{ color: '#64748B', fontWeight: 600 }}>Condições de Pagamento: </span>{data.paymentTerms}</div>
+              <div><span style={{ color: '#64748B', fontWeight: 600 }}>Prazo de Entrega: </span>{data.deliveryDays} dias</div>
+              <div><span style={{ color: '#64748B', fontWeight: 600 }}>Validade da Cotação: </span>{data.validityDays} dias</div>
+            </div>
+            {/* Linha 2: local de entrega + frete */}
+            <div style={{ display: 'flex', gap: '32px', marginBottom: data.usdBrl > 0 ? '4px' : '0' }}>
+              {data.localEntrega && (
+                <div><span style={{ color: '#64748B', fontWeight: 600 }}>Local de Entrega: </span>{data.localEntrega}</div>
+              )}
+              {data.freteEntrega && data.freteEntrega > 0 && (
+                <div><span style={{ color: '#64748B', fontWeight: 600 }}>Frete Local: </span>R$ {brl(data.freteEntrega)}</div>
+              )}
+            </div>
+            {/* Linha 3: referência cambial */}
+            {data.usdBrl > 0 && (
+              <div style={{ display: 'flex', gap: '24px', color: '#475569', fontStyle: 'italic' }}>
+                <div><span style={{ fontWeight: 600, fontStyle: 'normal' }}>Referência Cambial USD: </span>R$ {brl(data.usdBrl)}</div>
+                <div>Cotação sujeita à variação cambial.</div>
+              </div>
+            )}
           </div>
 
           {/* ── Observações para o cliente ──────────────────────────────── */}

@@ -292,6 +292,8 @@ export default function CotacaoPage() {
   const [pagamento, setPagamento] = useState((draft?.pagamento as string) ?? '50% no ato do pedido + 50% na entrega')
   const [prazo, setPrazo] = useState((draft?.prazo as string) ?? '90')
   const [usdBrl, setUsdBrl] = useState((draft?.usdBrl as string) ?? '')
+  const [localEntrega, setLocalEntrega] = useState((draft?.localEntrega as string) ?? 'Armazém Shiplog Hortolândia')
+  const [freteEntrega, setFreteEntrega] = useState((draft?.freteEntrega as string) ?? '')
 
   // Produtos do banco
   const [products, setProducts] = useState<ExtProduct[]>([])
@@ -414,7 +416,7 @@ export default function CotacaoPage() {
     saveDraft({
       empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, usdBrl, globalDiscount, notasInternas, notasCliente,
+      prazoValidade, pagamento, prazo, usdBrl, localEntrega, freteEntrega, globalDiscount, notasInternas, notasCliente,
       savedItems: lineItems.map(li => ({
         partNumber: li.product.partNumber,
         qtyBoxes: li.qtyBoxes,
@@ -422,7 +424,7 @@ export default function CotacaoPage() {
     })
   }, [empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, usdBrl, globalDiscount, notasInternas, notasCliente, lineItems]) // eslint-disable-line react-hooks/exhaustive-deps
+      prazoValidade, pagamento, prazo, usdBrl, localEntrega, freteEntrega, globalDiscount, notasInternas, notasCliente, lineItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleUploadFile(file: File) {
     const qId = savedQuotationId
@@ -884,6 +886,8 @@ export default function CotacaoPage() {
       clientState: estado,
       clientCep: cep,
       usdBrl: parseFloat(usdBrl.replace(',', '.')) || 0,
+      localEntrega,
+      freteEntrega: parseFloat(freteEntrega.replace(',', '.')) || 0,
       paymentTerms: pagamento,
       deliveryDays: parseInt(prazo) || 90,
       validityDays: parseInt(prazoValidade) || 30,
@@ -1007,10 +1011,10 @@ export default function CotacaoPage() {
         </div>
       </div>
 
-      {/* ── Dados da Cotação ─────────────────────────────────────────────── */}
+      {/* ── Cliente ──────────────────────────────────────────────────────── */}
       <section className={cardClass}>
         <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100 flex items-center justify-between">
-          <span>Dados da Cotação</span>
+          <span>Cliente</span>
           {selectedHistoricoId && (
             <span className="text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
               Editando {quotationNumber}
@@ -1138,8 +1142,30 @@ export default function CotacaoPage() {
               placeholder="00000-000" className={inputClass} />
           </div>
         </div>
-        {/* Linha 4: Condições de Pagamento, Prazo Entrega, Prazo Validade, Taxa USD, Fornecedor */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 0.9fr 1fr', gap: '16px' }}>
+        {/* Botão Salvar Cliente */}
+        <div className="flex justify-end mt-3">
+          <button
+            onClick={handleSalvarCliente}
+            disabled={savingCliente}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-green-700 hover:text-white disabled:opacity-60"
+            style={{ borderColor: '#15803d', color: '#15803d' }}
+            title="Salva ou atualiza este cliente no banco de dados"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            {savingCliente ? 'Salvando...' : 'Salvar Cliente'}
+          </button>
+        </div>
+      </section>
+
+      {/* ── Condições ────────────────────────────────────────────────────── */}
+      <section className={cardClass}>
+        <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">
+          Condições
+        </h2>
+        {/* Linha 1: Pagamento, Prazo Entrega, Prazo Validade, Taxa USD, Fornecedor */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 0.9fr 1fr', gap: '16px' }} className="mb-4">
           <div>
             <label className={labelClass}>Condições de pagamento</label>
             <input type="text" value={pagamento} onChange={(e) => setPagamento(e.target.value)}
@@ -1173,7 +1199,6 @@ export default function CotacaoPage() {
               value={usdBrl}
               onChange={e => {
                 setUsdBrl(e.target.value)
-                // Recalcula itens existentes com a nova taxa
                 const rate = parseFloat(e.target.value.replace(',', '.')) || 1
                 setLineItems(prev => prev.map(li => ({
                   ...li,
@@ -1189,7 +1214,6 @@ export default function CotacaoPage() {
             <select value={fornecedor} onChange={(e) => {
               const f = e.target.value
               setFornecedor(f)
-              // Recalcula preços dos itens já adicionados com o novo fornecedor
               const rate = parseFloat(usdBrl.replace(',', '.')) || 1
               setLineItems(prev => prev.map(li => ({
                 ...li,
@@ -1201,21 +1225,25 @@ export default function CotacaoPage() {
             </select>
           </div>
         </div>
-
-        {/* Botão Salvar Cliente */}
-        <div className="flex justify-end mt-3">
-          <button
-            onClick={handleSalvarCliente}
-            disabled={savingCliente}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-green-700 hover:text-white disabled:opacity-60"
-            style={{ borderColor: '#15803d', color: '#15803d' }}
-            title="Salva ou atualiza este cliente no banco de dados"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            {savingCliente ? 'Salvando...' : 'Salvar Cliente'}
-          </button>
+        {/* Linha 2: Local de Entrega, Frete de Entrega */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+          <div>
+            <label className={labelClass}>Local de Entrega</label>
+            <select value={localEntrega} onChange={e => setLocalEntrega(e.target.value)} className={inputClass}>
+              <option value="Armazém Shiplog Hortolândia">Armazém Shiplog Hortolândia</option>
+              <option value="Endereço do Cliente">Endereço do Cliente</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Frete de Entrega (R$)</label>
+            <input
+              type="text"
+              value={freteEntrega}
+              onChange={e => setFreteEntrega(e.target.value)}
+              placeholder="0,00"
+              className={`${inputClass} font-mono`}
+            />
+          </div>
         </div>
       </section>
 
