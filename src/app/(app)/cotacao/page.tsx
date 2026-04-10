@@ -227,6 +227,8 @@ export default function CotacaoPage() {
   // ID e nome do usuário logado (para created_by e responsible_name)
   const [currentUserId, setCurrentUserId] = useState<string>('')
   const [currentUserName, setCurrentUserName] = useState<string>('')
+  const [allUsers, setAllUsers] = useState<Array<{id: string; nome: string}>>([])
+  const [responsavelNome, setResponsavelNome] = useState((draft?.responsavelNome as string) ?? '')
   useEffect(() => {
     async function loadUser() {
       const { data } = await supabase.auth.getUser()
@@ -239,12 +241,27 @@ export default function CotacaoPage() {
           .select('nome')
           .eq('id', data.user.id)
           .single()
-        if (profile?.nome) { setCurrentUserName(profile.nome); return }
+        if (profile?.nome) {
+          const name = profile.nome
+          setCurrentUserName(name)
+          setResponsavelNome(prev => prev || name) // only set if not already set from draft
+          return
+        }
       } catch {}
       // Fallback: parte do e-mail antes do @
-      if (data.user.email) setCurrentUserName(data.user.email.split('@')[0])
+      if (data.user.email) {
+        const name = data.user.email.split('@')[0]
+        setCurrentUserName(name)
+        setResponsavelNome(prev => prev || name)
+      }
     }
     loadUser()
+  }, [])
+
+  useEffect(() => {
+    supabase.from('profiles').select('id, nome').then(({ data }) => {
+      if (data) setAllUsers(data.filter((u: {id: string; nome: string}) => u.nome))
+    })
   }, [])
 
   // Número de cotação — NUNCA restaurado do draft; sempre calculado do histórico
@@ -419,6 +436,7 @@ export default function CotacaoPage() {
       empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
       prazoValidade, pagamento, prazo, usdBrl, localEntrega, freteEntrega, globalDiscount, notasInternas, notasCliente,
+      responsavelNome,
       savedItems: lineItems.map(li => ({
         partNumber: li.product.partNumber,
         qtyBoxes: li.qtyBoxes,
@@ -426,7 +444,8 @@ export default function CotacaoPage() {
     })
   }, [empresa, contato, emailContato, telefone,
       cnpj, endereco, cidade, estado, cep, fornecedor,
-      prazoValidade, pagamento, prazo, usdBrl, localEntrega, freteEntrega, globalDiscount, notasInternas, notasCliente, lineItems]) // eslint-disable-line react-hooks/exhaustive-deps
+      prazoValidade, pagamento, prazo, usdBrl, localEntrega, freteEntrega, globalDiscount, notasInternas, notasCliente,
+      responsavelNome, lineItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleUploadFile(file: File) {
     const qId = savedQuotationId
@@ -812,7 +831,7 @@ export default function CotacaoPage() {
           delivery_days: parseInt(prazo) || 90,
           validity_days: parseInt(prazoValidade) || 30,
           created_by: currentUserId || null,
-          responsible_name: currentUserName || null,
+          responsible_name: responsavelNome || currentUserName || null,
           internal_notes: notasInternas || null,
           items: lineItems.map((li) => ({
             description: li.product.description,
@@ -864,7 +883,7 @@ export default function CotacaoPage() {
       destination_port: cidade ? `${cidade}${estado ? ' - ' + estado : ''}` : '',
       validity_days: 30,
       created_by: currentUserId || null,
-      responsible_name: currentUserName || null,
+      responsible_name: responsavelNome || currentUserName || null,
       internal_notes: notasInternas || null,
       items: lineItems.map((li) => ({
         description: li.product.description,
@@ -896,6 +915,7 @@ export default function CotacaoPage() {
       quoteNumber: quotationNumber,
       date: new Date().toLocaleDateString('pt-BR'),
       clientNotes: notasCliente || null,
+      responsibleName: responsavelNome || currentUserName || '',
       clientCompany: empresa,
       clientCnpj: cnpj,
       clientEmail: emailContato,
@@ -1041,6 +1061,21 @@ export default function CotacaoPage() {
             </span>
           )}
         </h2>
+        {/* Responsável */}
+        <div className="mb-4">
+          <label className={labelClass}>Responsável pela Cotação</label>
+          <select
+            value={responsavelNome}
+            onChange={e => setResponsavelNome(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— Selecionar responsável —</option>
+            {allUsers.map(u => (
+              <option key={u.id} value={u.nome}>{u.nome}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Linha 1: Número (25%), Data (25%), Empresa (50%) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '16px' }} className="mb-4">
           <div>
@@ -1296,7 +1331,7 @@ export default function CotacaoPage() {
       </section>
 
       {/* ── Produtos ─────────────────────────────────────────────────────── */}
-      <section className={cardClass}>
+      <section id="produto-section" className={cardClass}>
         <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">
           Produtos
         </h2>
@@ -1509,6 +1544,24 @@ export default function CotacaoPage() {
                     <td className="px-3 py-2.5 text-right font-mono text-gray-800">{brl(li.breakdown.finalPriceBox)}</td>
                     <td className="px-3 py-2.5 text-right font-mono font-semibold text-gray-900">{brl(li.breakdown.totalBrl)}</td>
                     <td className="px-3 py-2.5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Pre-fill product form with this item's data
+                          setSelectedProductId(li.product.id)
+                          setProductSearch(`${li.product.description} — ${li.product.partNumber}`)
+                          setQtyBoxesInput(String(li.qtyBoxes))
+                          setQtyPiecesInput(String(li.qtyBoxes * li.product.pcsPerBox))
+                          setDiscountInput(li.discount !== 0 ? String(li.discount) : '')
+                          // Remove from list
+                          handleRemoveItem(li.id)
+                          // Scroll to product section
+                          document.getElementById('produto-section')?.scrollIntoView({ behavior: 'smooth' })
+                        }}
+                        className="text-blue-600 hover:text-blue-900 transition-colors text-xs font-semibold underline mr-2"
+                      >
+                        Editar
+                      </button>
                       <button
                         onClick={() => handleRemoveItem(li.id)}
                         className="text-gray-300 hover:text-red-500 transition-colors font-medium text-base leading-none"

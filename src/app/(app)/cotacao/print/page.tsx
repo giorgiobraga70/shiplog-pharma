@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 interface PrintData {
   quoteNumber: string
   date: string
+  responsibleName?: string
   clientCompany: string
   clientCnpj?: string
   clientEmail: string
@@ -219,32 +220,27 @@ ${innerHtml}
           <div style={{ height: '2px', backgroundColor: '#0C3460', marginBottom: '7px' }} />
 
           {/* ── Dados do cliente ────────────────────────────────────────── */}
-          {/* Removidos: Cond. Pagamento, Prazo de Entrega, Validade (já estão no rodapé) */}
           <div style={{
             fontSize: '10px', marginBottom: '8px',
             padding: '5px 8px', backgroundColor: '#F9FAFB',
             borderRadius: '4px', border: '1px solid #E2E8F0',
           }}>
-            {/* Linha 1: Empresa (esquerda) | Cotação N° + Data (direita) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '2px 20px', marginBottom: '2px' }}>
+            {/* Linha 1: Empresa (75%) | Data (25%) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '2px 16px', marginBottom: '3px' }}>
               <div><span style={{ color: '#64748B' }}>Empresa: </span><strong>{data.clientCompany || '—'}</strong></div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ color: '#64748B' }}>Cotação N°: </span>
-                <strong style={{ fontFamily: 'monospace' }}>{data.quoteNumber}</strong>
-                <span style={{ color: '#64748B', marginLeft: '14px' }}>Data: </span>
-                <strong>{data.date}</strong>
-              </div>
+              <div style={{ textAlign: 'right' }}><span style={{ color: '#64748B' }}>Data: </span><strong>{data.date}</strong></div>
             </div>
-            {/* Linha 2: CNPJ | Contato | Telefone */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px 16px', marginBottom: '2px' }}>
-              <div><span style={{ color: '#64748B' }}>CNPJ: </span>{data.clientCnpj || '—'}</div>
+            {/* Linha 2: Endereço (75%) | CNPJ (25%) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '2px 16px', marginBottom: '3px' }}>
+              <div><span style={{ color: '#64748B' }}>Endereço: </span>{enderecoCompleto || '—'}</div>
+              <div style={{ textAlign: 'right' }}><span style={{ color: '#64748B' }}>CNPJ: </span>{data.clientCnpj || '—'}</div>
+            </div>
+            {/* Linha 3: Contato (25%) | Telefone (25%) | E-mail (25%) | Responsável (25%) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '2px 16px' }}>
               <div><span style={{ color: '#64748B' }}>Contato: </span>{data.clientContact || '—'}</div>
               <div><span style={{ color: '#64748B' }}>Telefone: </span>{data.clientPhone || '—'}</div>
-            </div>
-            {/* Linha 3: E-mail | Endereço completo */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>
               <div><span style={{ color: '#64748B' }}>E-mail: </span>{data.clientEmail || '—'}</div>
-              <div><span style={{ color: '#64748B' }}>Endereço: </span>{enderecoCompleto || '—'}</div>
+              <div><span style={{ color: '#64748B' }}>Responsável: </span>{data.responsibleName || '—'}</div>
             </div>
           </div>
 
@@ -256,39 +252,38 @@ ${innerHtml}
           }}>
             <colgroup>
               <col style={{ width: '2%' }} />   {/* N° */}
-              <col style={{ width: '15%' }} />  {/* Descrição */}
-              <col style={{ width: '13%' }} />  {/* Part Number — mais largo */}
-              <col style={{ width: '7%' }} />   {/* NCM */}
-              <col style={{ width: '3%' }} />   {/* Vol. */}
-              <col style={{ width: '6%' }} />   {/* Tamanho */}
-              <col style={{ width: '4%' }} />   {/* UN/CX */}
-              <col style={{ width: '3%' }} />   {/* QTD CX */}
-              <col style={{ width: '5%' }} />   {/* QTD UN */}
-              {/* 6 colunas de preço — largura igual: 42% ÷ 6 = 7% cada */}
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '7%' }} />
+              <col style={{ width: '12%' }} />  {/* Descrição */}
+              <col style={{ width: '9%' }} />   {/* Part Number */}
+              <col style={{ width: '6%' }} />   {/* NCM */}
+              <col style={{ width: '4%' }} />   {/* Volume */}
+              <col style={{ width: '4%' }} />   {/* Tamanho */}
+              <col style={{ width: '4%' }} />   {/* Peça/Caixa */}
+              <col style={{ width: '4%' }} />   {/* Qtd Caixas */}
+              <col style={{ width: '4%' }} />   {/* Qtd Peças */}
+              <col style={{ width: '8.5%' }} /> {/* Peças c/Imp */}
+              <col style={{ width: '8.5%' }} /> {/* Caixas c/Imp */}
+              <col style={{ width: '8.5%' }} /> {/* Peças s/IPI */}
+              <col style={{ width: '8.5%' }} /> {/* Caixas s/IPI */}
+              <col style={{ width: '8.5%' }} /> {/* Peças s/Imp */}
+              <col style={{ width: '8.5%' }} /> {/* Caixas s/Imp */}
             </colgroup>
             <thead>
               <tr style={{ backgroundColor: '#0C3460', color: '#fff' }}>
-                <th style={thStyle('center')}>N°</th>
-                <th style={thStyle('center')}>Descrição</th>
-                <th style={thStyle('center')}>Part Number</th>
-                <th style={thStyle('center')}>NCM</th>
-                <th style={thStyle('center')}>Vol.</th>
-                <th style={thStyle('center')}>Tamanho</th>
-                <th style={thStyle('center')}>UN/CX</th>
-                <th style={thStyle('center')}>QTD CX</th>
-                <th style={thStyle('center')}>QTD UN</th>
-                <th style={thStyle('center')}>UN C/Imp.</th>
-                <th style={thStyle('center')}>CX C/Imp.</th>
-                <th style={thStyle('center')}>UN S/IPI</th>
-                <th style={thStyle('center')}>CX S/IPI</th>
-                <th style={thStyle('center')}>UN S/Imp.</th>
-                <th style={thStyle('center')}>CX S/Imp.</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>N°</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>Descrição</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>Part Number</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>NCM</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>Volume</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>Tamanho</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Peça/<br/>Caixa</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Qtd.<br/>Caixas</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Qtd.<br/>Peças</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Peças<br/>c/Imp.</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Caixas<br/>c/Imp.</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Peças<br/>s/IPI</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Caixas<br/>s/IPI</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Peças<br/>s/Imp.</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Caixas<br/>s/Imp.</th>
               </tr>
             </thead>
             <tbody>
@@ -366,36 +361,48 @@ ${innerHtml}
             </tfoot>
           </table>
 
-          {/* Linha divisória */}
-          <div style={{ height: '1px', backgroundColor: '#CBD5E1', margin: '8px 0' }} />
+          {/* Legenda dos preços — alinhada à direita, logo abaixo da tabela */}
+          <div style={{ marginTop: '4px', fontSize: '8px', color: '#64748B', display: 'flex', gap: '14px', justifyContent: 'flex-end' }}>
+            <span><strong>C/Imp.</strong> = com todos os impostos (II + IPI + PIS + COFINS + ICMS)</span>
+            <span><strong>S/IPI</strong> = sem IPI (com demais impostos)</span>
+            <span><strong>S/Imp.</strong> = sem impostos</span>
+          </div>
 
-          {/* ── Condições comerciais (rodapé) ───────────────────────────── */}
+          {/* Linha divisória */}
+          <div style={{ height: '1px', backgroundColor: '#CBD5E1', margin: '6px 0' }} />
+
+          {/* ── Condições comerciais ─────────────────────────────────────── */}
           <div style={{
             backgroundColor: '#F9FAFB', border: '1px solid #E2E8F0', borderRadius: '4px',
             padding: '6px 10px', fontSize: '10px',
           }}>
-            {/* Linha 1: pagamento, prazo, validade */}
+            {/* Linha 1: Pagamento | Prazo de Entrega | Validade */}
             <div style={{ display: 'flex', gap: '32px', marginBottom: '4px' }}>
               <div><span style={{ color: '#64748B', fontWeight: 600 }}>Condições de Pagamento: </span>{data.paymentTerms}</div>
               <div><span style={{ color: '#64748B', fontWeight: 600 }}>Prazo de Entrega: </span>{data.deliveryDays} dias</div>
               <div><span style={{ color: '#64748B', fontWeight: 600 }}>Validade da Cotação: </span>{data.validityDays} dias</div>
             </div>
-            {/* Linha 2: local de entrega + frete */}
-            <div style={{ display: 'flex', gap: '32px', marginBottom: data.usdBrl > 0 ? '4px' : '0' }}>
+            {/* Linha 2: Local de Entrega/Retirada | Frete (só se > 0) */}
+            <div style={{ display: 'flex', gap: '32px', marginBottom: '4px' }}>
               {data.localEntrega && (
-                <div><span style={{ color: '#64748B', fontWeight: 600 }}>Local de Entrega: </span>{data.localEntrega}</div>
+                <div><span style={{ color: '#64748B', fontWeight: 600 }}>Local de Entrega/Retirada: </span>{data.localEntrega}</div>
               )}
               {data.freteEntrega && data.freteEntrega > 0 && (
                 <div><span style={{ color: '#64748B', fontWeight: 600 }}>Frete Local: </span>R$ {brl(data.freteEntrega)}</div>
               )}
             </div>
-            {/* Linha 3: referência cambial */}
-            {data.usdBrl > 0 && (
-              <div style={{ display: 'flex', gap: '24px', color: '#475569', fontStyle: 'italic' }}>
-                <div><span style={{ fontWeight: 600, fontStyle: 'normal' }}>Referência Cambial USD: </span>R$ {brl(data.usdBrl)}</div>
-                <div>Cotação sujeita à variação cambial.</div>
+            {/* Linha 3: Referência cambial + texto legal */}
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              {data.usdBrl > 0 && (
+                <div style={{ flexShrink: 0 }}>
+                  <span style={{ color: '#64748B', fontWeight: 600 }}>Referência Cambial USD: </span>
+                  <span style={{ fontFamily: 'monospace' }}>R$ {brl(data.usdBrl)}</span>
+                </div>
+              )}
+              <div style={{ color: '#64748B', fontStyle: 'italic', flexShrink: 1 }}>
+                Valor válido para taxa de câmbio indicada e carga tributária em vigor na data desta cotação; em caso de alterações desses parâmetros, o preço será ajustado proporcionalmente.
               </div>
-            )}
+            </div>
           </div>
 
           {/* ── Observações para o cliente ──────────────────────────────── */}
@@ -413,13 +420,6 @@ ${innerHtml}
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{data.clientNotes}</div>
             </div>
           )}
-
-          {/* Legenda dos preços */}
-          <div style={{ marginTop: '6px', fontSize: '8.5px', color: '#64748B', display: 'flex', gap: '16px' }}>
-            <span><strong>C/Imp.</strong> = com todos os impostos (II + IPI + PIS + COFINS + ICMS)</span>
-            <span><strong>S/IPI</strong> = sem IPI (com demais impostos)</span>
-            <span><strong>S/Imp.</strong> = sem impostos</span>
-          </div>
 
           {/* Rodapé */}
           <div style={{

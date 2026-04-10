@@ -1,5 +1,6 @@
 'use client'
 
+import { supabase } from '@/lib/supabase'
 import { useState, useEffect, useRef } from 'react'
 
 interface ExtraContact {
@@ -25,23 +26,24 @@ interface Client {
 }
 
 // Serializa/deserializa contatos extras do campo comentarios
-function parseComentarios(raw?: string): { comments: string; contacts: ExtraContact[] } {
-  if (!raw) return { comments: '', contacts: [] }
+function parseComentarios(raw?: string): { comments: string; contacts: ExtraContact[]; responsavel: string } {
+  if (!raw) return { comments: '', contacts: [], responsavel: '' }
   try {
     const parsed = JSON.parse(raw)
     if (parsed && typeof parsed === 'object' && ('contacts' in parsed || 'comments' in parsed)) {
       return {
         comments: parsed.comments ?? '',
         contacts: Array.isArray(parsed.contacts) ? parsed.contacts : [],
+        responsavel: parsed.responsavel ?? '',
       }
     }
   } catch {}
-  return { comments: raw, contacts: [] }
+  return { comments: raw, contacts: [], responsavel: '' }
 }
 
-function serializeComentarios(comments: string, contacts: ExtraContact[]): string {
-  if (contacts.length === 0) return comments
-  return JSON.stringify({ comments, contacts })
+function serializeComentarios(comments: string, contacts: ExtraContact[], responsavel: string): string {
+  if (contacts.length === 0 && !responsavel) return comments
+  return JSON.stringify({ comments, contacts, responsavel })
 }
 
 const ESTADOS_BR = [
@@ -83,6 +85,14 @@ export default function ClientesPage() {
 
   const [formComments, setFormComments] = useState('')
   const [extraContacts, setExtraContacts] = useState<ExtraContact[]>([])
+  const [formResponsavel, setFormResponsavel] = useState('')
+  const [allUsers, setAllUsers] = useState<Array<{id: string; nome: string}>>([])
+
+  useEffect(() => {
+    supabase.from('profiles').select('id, nome').then(({ data }) => {
+      if (data) setAllUsers(data.filter((u: {id: string; nome: string}) => u.nome))
+    })
+  }, [])
 
   // Edição inline do contato
   const [editingContactId, setEditingContactId] = useState<string | null>(null)
@@ -150,13 +160,14 @@ export default function ClientesPage() {
     setForm({ ...EMPTY })
     setFormComments('')
     setExtraContacts([])
+    setFormResponsavel('')
     setEditingId(null)
     setShowForm(true)
     setSelectedClient(null)
   }
 
   function openEdit(c: Client) {
-    const { comments, contacts } = parseComentarios(c.comentarios)
+    const { comments, contacts, responsavel } = parseComentarios(c.comentarios)
     setForm({
       empresa: c.empresa ?? '', contato: c.contato ?? '', email: c.email ?? '',
       telefone: c.telefone ?? '', cnpj: c.cnpj ?? '', endereco: c.endereco ?? '',
@@ -165,6 +176,7 @@ export default function ClientesPage() {
     })
     setFormComments(comments)
     setExtraContacts(contacts)
+    setFormResponsavel(responsavel)
     setEditingId(c.id)
     setShowForm(true)
     setSelectedClient(null)
@@ -179,7 +191,7 @@ export default function ClientesPage() {
       const method = editingId ? 'PATCH' : 'POST'
       const payload = {
         ...form,
-        comentarios: serializeComentarios(formComments, extraContacts.filter(c => c.nome || c.email)),
+        comentarios: serializeComentarios(formComments, extraContacts.filter(c => c.nome || c.email), formResponsavel),
       }
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
@@ -394,6 +406,19 @@ export default function ClientesPage() {
                   <label className={labelClass}>Empresa *</label>
                   <input value={form.empresa} onChange={e => setForm(f => ({ ...f, empresa: e.target.value }))} className={inputClass} placeholder="Nome da empresa" />
                 </div>
+                <div>
+                  <label className={labelClass}>Responsável</label>
+                  <select
+                    value={formResponsavel}
+                    onChange={e => setFormResponsavel(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">— Selecionar —</option>
+                    {allUsers.map(u => (
+                      <option key={u.id} value={u.nome}>{u.nome}</option>
+                    ))}
+                  </select>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <label className={labelClass}>Contato</label>
@@ -509,8 +534,9 @@ export default function ClientesPage() {
                 {selectedClient.cnpj && <p><span className="font-medium">CNPJ:</span> {selectedClient.cnpj}</p>}
                 {selectedClient.endereco && <p><span className="font-medium">End.:</span> {selectedClient.endereco}, {selectedClient.cidade}/{selectedClient.estado} {selectedClient.cep}</p>}
                 {(() => {
-                  const { comments, contacts } = parseComentarios(selectedClient.comentarios)
+                  const { comments, contacts, responsavel } = parseComentarios(selectedClient.comentarios)
                   return <>
+                    {responsavel && <p><span className="font-medium">Responsável:</span> {responsavel}</p>}
                     {contacts.length > 0 && (
                       <div className="mt-2">
                         <p className="text-xs font-semibold text-gray-600 mb-1">Contatos adicionais:</p>
