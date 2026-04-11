@@ -103,6 +103,7 @@ function Navbar() {
           {navLink('/dashboard', 'Dashboard')}
           {navLink('/cotacao', 'Cotação')}
           {navLink('/historico', 'Histórico')}
+          {navLink('/visitas', 'Visitas')}
           {navLink('/admin/clientes', 'Clientes')}
           {navLink('/admin/produtos', 'Produtos')}
           {isAdmin && navLink('/admin/usuarios', 'Usuários')}
