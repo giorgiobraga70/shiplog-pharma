@@ -251,21 +251,21 @@ ${innerHtml}
             marginBottom: '0', tableLayout: 'fixed',
           }}>
             <colgroup>
-              <col style={{ width: '2%' }} />   {/* N° */}
-              <col style={{ width: '12%' }} />  {/* Descrição */}
-              <col style={{ width: '9%' }} />   {/* Part Number */}
-              <col style={{ width: '6%' }} />   {/* NCM */}
-              <col style={{ width: '4%' }} />   {/* Volume */}
-              <col style={{ width: '4%' }} />   {/* Tamanho */}
-              <col style={{ width: '4%' }} />   {/* Peça/Caixa */}
-              <col style={{ width: '4%' }} />   {/* Qtd Caixas */}
-              <col style={{ width: '4%' }} />   {/* Qtd Peças */}
-              <col style={{ width: '8.5%' }} /> {/* Peças c/Imp */}
-              <col style={{ width: '8.5%' }} /> {/* Caixas c/Imp */}
-              <col style={{ width: '8.5%' }} /> {/* Peças s/IPI */}
-              <col style={{ width: '8.5%' }} /> {/* Caixas s/IPI */}
-              <col style={{ width: '8.5%' }} /> {/* Peças s/Imp */}
-              <col style={{ width: '8.5%' }} /> {/* Caixas s/Imp */}
+              <col style={{ width: '2%' }} />     {/* N° */}
+              <col style={{ width: '37.3%' }} />  {/* Descrição */}
+              <col style={{ width: '7%' }} />     {/* Part Number */}
+              <col style={{ width: '6%' }} />     {/* NCM */}
+              <col style={{ width: '4%' }} />     {/* Volume */}
+              <col style={{ width: '6%' }} />     {/* Tamanho */}
+              <col style={{ width: '4%' }} />     {/* Peça/Caixa */}
+              <col style={{ width: '4%' }} />     {/* Qtd Caixas */}
+              <col style={{ width: '4%' }} />     {/* Qtd Peças */}
+              <col style={{ width: '4.25%' }} />  {/* Peças c/Imp */}
+              <col style={{ width: '4.25%' }} />  {/* Caixas c/Imp */}
+              <col style={{ width: '4.25%' }} />  {/* Peças s/IPI */}
+              <col style={{ width: '4.25%' }} />  {/* Caixas s/IPI */}
+              <col style={{ width: '4.25%' }} />  {/* Peças s/Imp */}
+              <col style={{ width: '4.25%' }} />  {/* Caixas s/Imp */}
             </colgroup>
             <thead>
               <tr style={{ backgroundColor: '#0C3460', color: '#fff' }}>
@@ -387,8 +387,8 @@ ${innerHtml}
               {data.localEntrega && (
                 <div><span style={{ color: '#64748B', fontWeight: 600 }}>Local de Entrega/Retirada: </span>{data.localEntrega}</div>
               )}
-              {data.freteEntrega && data.freteEntrega > 0 && (
-                <div><span style={{ color: '#64748B', fontWeight: 600 }}>Frete Local: </span>R$ {brl(data.freteEntrega)}</div>
+              {(data.freteEntrega ?? 0) > 0 && (
+                <div><span style={{ color: '#64748B', fontWeight: 600 }}>Valor do Frete: </span>R$ {brl(data.freteEntrega!)}</div>
               )}
             </div>
             {/* Linha 3: Referência cambial + texto legal */}

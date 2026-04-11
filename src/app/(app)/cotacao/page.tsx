@@ -726,7 +726,8 @@ export default function CotacaoPage() {
         const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`)
         const json = await res.json()
         if (!json.erro) {
-          if (json.logradouro) setEndereco(json.logradouro)
+          const endParts = [json.logradouro, json.bairro].filter(Boolean)
+          if (endParts.length > 0) setEndereco(endParts.join(', '))
           if (json.localidade) setCidade(json.localidade)
           if (json.uf) {
             setEstado(json.uf)
