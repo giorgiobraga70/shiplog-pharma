@@ -301,11 +301,13 @@ export default function HistoricoPage() {
     const saved    = bucket(quotations, 'draft')
     const sent     = bucket(quotations, 'sent')
     const approved = bucket(quotations, 'approved')
+    const lost     = bucket(quotations, 'lost')
     return [
       { label: 'Total',     color: '#0C3460', ...total    },
       { label: 'Salvas',    color: '#1D6FAE', ...saved    },
       { label: 'Enviadas',  color: '#B45309', ...sent     },
       { label: 'Aprovadas', color: '#166534', ...approved },
+      { label: 'Perdidas',  color: '#6B7280', ...lost     },
     ]
   }, [quotations])
 
@@ -932,7 +934,7 @@ export default function HistoricoPage() {
               <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                 <span className="text-xs text-gray-500">Conversão geral</span>
                 <span className="text-sm font-bold text-green-700">
-                  {((funnelData[3].count / funnelData[0].count) * 100).toFixed(0)}%
+                  {((funnelData[3].count / funnelData[0].count) * 100).toFixed(0)}% aprovadas
                 </span>
               </div>
             )}

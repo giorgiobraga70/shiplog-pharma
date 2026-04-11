@@ -227,6 +227,7 @@ export default function CotacaoPage() {
   // ID e nome do usuário logado (para created_by e responsible_name)
   const [currentUserId, setCurrentUserId] = useState<string>('')
   const [currentUserName, setCurrentUserName] = useState<string>('')
+  const [isAdmin, setIsAdmin] = useState(false)
   const [allUsers, setAllUsers] = useState<Array<{id: string; nome: string}>>([])
   const [responsavelNome, setResponsavelNome] = useState((draft?.responsavelNome as string) ?? '')
   useEffect(() => {
@@ -234,13 +235,14 @@ export default function CotacaoPage() {
       const { data } = await supabase.auth.getUser()
       if (!data.user?.id) return
       setCurrentUserId(data.user.id)
-      // Busca nome no profiles
+      // Busca nome e role no profiles
       try {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('nome')
+          .select('nome, role')
           .eq('id', data.user.id)
           .single()
+        if (profile?.role === 'admin') setIsAdmin(true)
         if (profile?.nome) {
           const name = profile.nome
           setCurrentUserName(name)
@@ -306,7 +308,7 @@ export default function CotacaoPage() {
   const [filterCor, setFilterCor] = useState('')
 
   // Condições comerciais
-  const [pagamento, setPagamento] = useState((draft?.pagamento as string) ?? '50% no ato do pedido + 50% na entrega')
+  const [pagamento, setPagamento] = useState((draft?.pagamento as string) ?? '50% como garantia no ato do pedido + 50% antes da retirada/entrega')
   const [prazo, setPrazo] = useState((draft?.prazo as string) ?? '90')
   const [usdBrl, setUsdBrl] = useState((draft?.usdBrl as string) ?? '')
   const [usdBrlAuto, setUsdBrlAuto] = useState('')   // taxa buscada automaticamente
@@ -399,7 +401,7 @@ export default function CotacaoPage() {
             setEstado(q.client_state ?? '')
             setCep(q.client_cep ?? '')
             setPrazoValidade(String(q.validity_days ?? 30))
-            setPagamento(q.payment_terms ?? '50% no ato do pedido + 50% na entrega')
+            setPagamento(q.payment_terms ?? '50% como garantia no ato do pedido + 50% antes da retirada/entrega')
             setPrazo(String(q.delivery_days ?? 90))
             setFornecedor(q.supplier ?? 'Four Star')
             if (q.usd_brl) setUsdBrl(String(q.usd_brl))
@@ -573,7 +575,7 @@ export default function CotacaoPage() {
     setEstado(q.client_state ?? '')
     setCep(q.client_cep ?? '')
     setPrazoValidade(String(q.validity_days ?? 30))
-    setPagamento(q.payment_terms ?? '50% no ato do pedido + 50% na entrega')
+    setPagamento(q.payment_terms ?? '50% como garantia no ato do pedido + 50% antes da retirada/entrega')
     setPrazo(String(q.delivery_days ?? 90))
     setFornecedor(q.supplier ?? 'Four Star')
     // Carregar cidades do estado restaurado
@@ -1061,21 +1063,6 @@ export default function CotacaoPage() {
             </span>
           )}
         </h2>
-        {/* Responsável */}
-        <div className="mb-4">
-          <label className={labelClass}>Responsável pela Cotação</label>
-          <select
-            value={responsavelNome}
-            onChange={e => setResponsavelNome(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">— Selecionar responsável —</option>
-            {allUsers.map(u => (
-              <option key={u.id} value={u.nome}>{u.nome}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Linha 1: Número (25%), Data (25%), Empresa (50%) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '16px' }} className="mb-4">
           <div>
@@ -1197,20 +1184,35 @@ export default function CotacaoPage() {
               placeholder="00000-000" className={inputClass} />
           </div>
         </div>
-        {/* Botão Salvar Cliente */}
-        <div className="flex justify-end mt-3">
-          <button
-            onClick={handleSalvarCliente}
-            disabled={savingCliente}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-green-700 hover:text-white disabled:opacity-60"
-            style={{ borderColor: '#15803d', color: '#15803d' }}
-            title="Salva ou atualiza este cliente no banco de dados"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            {savingCliente ? 'Salvando...' : 'Salvar Cliente'}
-          </button>
+        {/* Linha 4: Responsável (25%) + Salvar Cliente (alinhado à direita) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '16px' }} className="mt-3 items-end">
+          <div>
+            <label className={labelClass}>Responsável</label>
+            <select
+              value={responsavelNome}
+              onChange={e => setResponsavelNome(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">— Selecionar —</option>
+              {allUsers.map(u => (
+                <option key={u.id} value={u.nome}>{u.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleSalvarCliente}
+              disabled={savingCliente}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-green-700 hover:text-white disabled:opacity-60"
+              style={{ borderColor: '#15803d', color: '#15803d' }}
+              title="Salva ou atualiza este cliente no banco de dados"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              {savingCliente ? 'Salvando...' : 'Salvar Cliente'}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1222,9 +1224,17 @@ export default function CotacaoPage() {
         {/* Linha 1: Pagamento, Prazo Entrega, Prazo Validade, Taxa USD, Fornecedor */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 0.9fr 1fr', gap: '16px' }} className="mb-4">
           <div>
-            <label className={labelClass}>Condições de pagamento</label>
-            <input type="text" value={pagamento} onChange={(e) => setPagamento(e.target.value)}
-              className={inputClass} />
+            <label className={labelClass}>
+              Condições de pagamento
+              {!isAdmin && <span className="ml-1 text-gray-400 font-normal text-xs">(somente admin)</span>}
+            </label>
+            <input
+              type="text"
+              value={pagamento}
+              onChange={(e) => isAdmin && setPagamento(e.target.value)}
+              readOnly={!isAdmin}
+              className={`${inputClass}${!isAdmin ? ' bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+            />
           </div>
           <div>
             <label className={labelClass}>Prazo de entrega</label>
