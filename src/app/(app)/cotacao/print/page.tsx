@@ -252,20 +252,20 @@ ${innerHtml}
           }}>
             <colgroup>
               <col style={{ width: '2%' }} />     {/* N° */}
-              <col style={{ width: '26.57%' }} /> {/* Descrição */}
+              <col style={{ width: '24.47%' }} /> {/* Descrição */}
               <col style={{ width: '7%' }} />     {/* Part Number */}
               <col style={{ width: '6%' }} />     {/* NCM */}
               <col style={{ width: '4%' }} />     {/* Volume */}
               <col style={{ width: '7.13%' }} />  {/* Tamanho */}
               <col style={{ width: '4%' }} />     {/* Peça/Caixa */}
               <col style={{ width: '4%' }} />     {/* Qtd Caixas */}
-              <col style={{ width: '6.34%' }} />  {/* Qtd Peças */}
+              <col style={{ width: '6.97%' }} />  {/* Qtd Peças */}
               <col style={{ width: '4.59%' }} />  {/* Peças c/Imp */}
-              <col style={{ width: '6.73%' }} />  {/* Caixas c/Imp */}
+              <col style={{ width: '7.40%' }} />  {/* Caixas c/Imp */}
               <col style={{ width: '4.59%' }} />  {/* Peças s/IPI */}
-              <col style={{ width: '6.73%' }} />  {/* Caixas s/IPI */}
+              <col style={{ width: '7.40%' }} />  {/* Caixas s/IPI */}
               <col style={{ width: '4.59%' }} />  {/* Peças s/Imp */}
-              <col style={{ width: '6.73%' }} />  {/* Caixas s/Imp */}
+              <col style={{ width: '7.40%' }} />  {/* Caixas s/Imp */}
             </colgroup>
             <thead>
               <tr style={{ backgroundColor: '#0C3460', color: '#fff' }}>
@@ -311,12 +311,12 @@ ${innerHtml}
                   <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
                     {item.qtyUnits.toLocaleString('pt-BR')}
                   </td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace', fontWeight: 600 }}>R$ {brl(item.finalPriceUnit)}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBox)}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceUnitSIpi)}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBoxSIpi)}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceUnitSImp)}</td>
-                  <td style={{ ...tdStyle('right'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBoxSImp)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontWeight: 600 }}>R$ {brl(item.finalPriceUnit)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBox)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceUnitSIpi)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBoxSIpi)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceUnitSImp)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBoxSImp)}</td>
                 </tr>
               ))}
             </tbody>
