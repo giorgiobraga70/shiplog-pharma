@@ -245,45 +245,28 @@ ${innerHtml}
           </div>
 
           {/* ── Tabela de itens ─────────────────────────────────────────── */}
-          {/* table-layout: fixed para distribuição igual das 6 colunas de preço */}
+          {/* tableLayout: auto — colunas encolhem ao conteúdo; Descrição absorve o resto */}
           <table style={{
             width: '100%', borderCollapse: 'collapse', fontSize: '10px',
-            marginBottom: '0', tableLayout: 'fixed',
+            marginBottom: '0', tableLayout: 'auto',
           }}>
-            <colgroup>
-              <col style={{ width: '2%' }} />     {/* N° */}
-              <col style={{ width: '24.47%' }} /> {/* Descrição */}
-              <col style={{ width: '7%' }} />     {/* Part Number */}
-              <col style={{ width: '6%' }} />     {/* NCM */}
-              <col style={{ width: '4%' }} />     {/* Volume */}
-              <col style={{ width: '7.13%' }} />  {/* Tamanho */}
-              <col style={{ width: '4%' }} />     {/* Peça/Caixa */}
-              <col style={{ width: '4%' }} />     {/* Qtd Caixas */}
-              <col style={{ width: '6.97%' }} />  {/* Qtd Peças */}
-              <col style={{ width: '4.59%' }} />  {/* Peças c/Imp */}
-              <col style={{ width: '7.40%' }} />  {/* Caixas c/Imp */}
-              <col style={{ width: '4.59%' }} />  {/* Peças s/IPI */}
-              <col style={{ width: '7.40%' }} />  {/* Caixas s/IPI */}
-              <col style={{ width: '4.59%' }} />  {/* Peças s/Imp */}
-              <col style={{ width: '7.40%' }} />  {/* Caixas s/Imp */}
-            </colgroup>
             <thead>
               <tr style={{ backgroundColor: '#0C3460', color: '#fff' }}>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>N°</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>Descrição</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>Part Number</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>NCM</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>Volume</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal' }}>Tamanho</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Peça/<br/>Caixa</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Qtd.<br/>Caixas</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Qtd.<br/>Peças</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Peças<br/>c/Imp.</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Caixas<br/>c/Imp.</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Peças<br/>s/IPI</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Caixas<br/>s/IPI</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Peças<br/>s/Imp.</th>
-                <th style={{ ...thStyle('center'), whiteSpace: 'normal', lineHeight: 1.2 }}>Caixas<br/>s/Imp.</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap' }}>N°</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'normal', width: '100%' }}>Descrição</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap' }}>Part Number</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap' }}>NCM</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap' }}>Volume</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap' }}>Tamanho</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Peça/<br/>Caixa</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Qtd.<br/>Caixas</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Qtd.<br/>Peças</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Peças<br/>c/Imp.</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Caixas<br/>c/Imp.</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Peças<br/>s/IPI</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Caixas<br/>s/IPI</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Peças<br/>s/Imp.</th>
+                <th style={{ ...thStyle('center'), whiteSpace: 'nowrap', lineHeight: 1.2 }}>Caixas<br/>s/Imp.</th>
               </tr>
             </thead>
             <tbody>
@@ -292,31 +275,31 @@ ${innerHtml}
                   backgroundColor: idx % 2 === 0 ? '#fff' : '#F8FAFC',
                   borderBottom: '1px solid #CBD5E1',
                 }}>
-                  <td style={tdStyle('center')}>{idx + 1}</td>
-                  <td style={tdStyle('left')}>{item.description}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontSize: '9px', wordBreak: 'break-all' }}>
+                  <td style={{ ...tdStyle('center'), whiteSpace: 'nowrap' }}>{idx + 1}</td>
+                  <td style={{ ...tdStyle('left'), whiteSpace: 'normal' }}>{item.description}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontSize: '9px', whiteSpace: 'nowrap' }}>
                     {item.partNumber}
                   </td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontSize: '9px' }}>{item.ncmCode || '—'}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontSize: '9px', whiteSpace: 'nowrap' }}>{item.ncmCode || '—'}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                     {item.volumeMl != null ? `${item.volumeMl}ml` : '—'}
                   </td>
-                  <td style={{ ...tdStyle('center'), fontSize: '9px' }}>{item.tamanho || '—'}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
+                  <td style={{ ...tdStyle('center'), fontSize: '9px', whiteSpace: 'nowrap' }}>{item.tamanho || '—'}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                     {item.pcsPerBox.toLocaleString('pt-BR')}
                   </td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                     {item.qtyBoxes.toLocaleString('pt-BR')}
                   </td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                     {item.qtyUnits.toLocaleString('pt-BR')}
                   </td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontWeight: 600 }}>R$ {brl(item.finalPriceUnit)}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBox)}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceUnitSIpi)}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBoxSIpi)}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceUnitSImp)}</td>
-                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace' }}>R$ {brl(item.finalPriceBoxSImp)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', fontWeight: 600, whiteSpace: 'nowrap' }}>R$ {brl(item.finalPriceUnit)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>R$ {brl(item.finalPriceBox)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>R$ {brl(item.finalPriceUnitSIpi)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>R$ {brl(item.finalPriceBoxSIpi)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>R$ {brl(item.finalPriceUnitSImp)}</td>
+                  <td style={{ ...tdStyle('center'), fontFamily: 'monospace', whiteSpace: 'nowrap' }}>R$ {brl(item.finalPriceBoxSImp)}</td>
                 </tr>
               ))}
             </tbody>
