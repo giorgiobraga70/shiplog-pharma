@@ -252,20 +252,20 @@ ${innerHtml}
           }}>
             <colgroup>
               <col style={{ width: '2%' }} />     {/* N° */}
-              <col style={{ width: '27.19%' }} /> {/* Descrição */}
+              <col style={{ width: '26.57%' }} /> {/* Descrição */}
               <col style={{ width: '7%' }} />     {/* Part Number */}
               <col style={{ width: '6%' }} />     {/* NCM */}
               <col style={{ width: '4%' }} />     {/* Volume */}
-              <col style={{ width: '7.92%' }} />  {/* Tamanho */}
+              <col style={{ width: '7.13%' }} />  {/* Tamanho */}
               <col style={{ width: '4%' }} />     {/* Peça/Caixa */}
               <col style={{ width: '4%' }} />     {/* Qtd Caixas */}
-              <col style={{ width: '5.76%' }} />  {/* Qtd Peças */}
+              <col style={{ width: '6.34%' }} />  {/* Qtd Peças */}
               <col style={{ width: '4.59%' }} />  {/* Peças c/Imp */}
-              <col style={{ width: '6.12%' }} />  {/* Caixas c/Imp */}
+              <col style={{ width: '6.73%' }} />  {/* Caixas c/Imp */}
               <col style={{ width: '4.59%' }} />  {/* Peças s/IPI */}
-              <col style={{ width: '6.12%' }} />  {/* Caixas s/IPI */}
+              <col style={{ width: '6.73%' }} />  {/* Caixas s/IPI */}
               <col style={{ width: '4.59%' }} />  {/* Peças s/Imp */}
-              <col style={{ width: '6.12%' }} />  {/* Caixas s/Imp */}
+              <col style={{ width: '6.73%' }} />  {/* Caixas s/Imp */}
             </colgroup>
             <thead>
               <tr style={{ backgroundColor: '#0C3460', color: '#fff' }}>
