@@ -410,6 +410,26 @@ export default function CotacaoPage() {
             } else {
               setCidade(q.client_city ?? '')
             }
+            // Se campos de contato/endereço estão vazios (cotação antiga), preenche do cadastro de clientes
+            if (!q.client_phone && !q.client_cnpj && !q.client_address && q.client_company) {
+              fetch('/api/clients')
+                .then(r => r.json())
+                .then((cls: Array<{ empresa: string; telefone?: string; cnpj?: string; endereco?: string; cep?: string; cidade?: string; estado?: string }>) => {
+                  const match = cls.find(c => c.empresa.toLowerCase() === (q.client_company ?? '').toLowerCase())
+                  if (!match) return
+                  if (match.telefone) setTelefone(match.telefone)
+                  if (match.cnpj)     setCnpj(match.cnpj)
+                  if (match.endereco) setEndereco(match.endereco)
+                  if (match.cep)      setCep(match.cep)
+                  if (match.estado) {
+                    setEstado(match.estado)
+                    loadCidades(match.estado).then(() => { if (match.cidade) setCidade(match.cidade) })
+                  } else if (match.cidade) {
+                    setCidade(match.cidade)
+                  }
+                })
+                .catch(() => {})
+            }
             // Carrega anexos se existirem
             const totalsRaw = (q as unknown as { totals?: { _attachments?: unknown[] } }).totals
             if (Array.isArray(totalsRaw?._attachments)) {
