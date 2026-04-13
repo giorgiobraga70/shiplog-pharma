@@ -66,50 +66,21 @@ function num(value: number, decimals = 2) {
 export default function CotacaoPrintPage() {
   const [data, setData] = useState<PrintData | null>(null)
   const [error, setError] = useState(false)
-  const [isSending, setIsSending] = useState(false)
-  const [emailStatus, setEmailStatus] = useState<'idle' | 'success' | 'error'>('idle')
-
-  async function handleSendEmail() {
+  function handleSendEmail() {
     if (!data) return
-    setIsSending(true)
-    setEmailStatus('idle')
-    try {
-      const contentEl = document.getElementById('quote-content')
-      const innerHtml = contentEl?.innerHTML ?? ''
-      const htmlContent = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cotação Shiplog Pharma – ${data.quoteNumber}</title>
-</head>
-<body style="margin:0;padding:16px 20px;font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;background:#ffffff;">
-${innerHtml}
-</body>
-</html>`
+    const subject = encodeURIComponent(`Cotação Shiplog Pharma – ${data.quoteNumber} – ${data.clientCompany}`)
+    const body = encodeURIComponent(
+      `Prezado(a) ${data.clientContact || data.clientCompany},\n\nSegue em anexo a cotação número ${data.quoteNumber} conforme solicitado.\n\nAtenciosamente,\nShiplog Pharma`
+    )
+    window.open(`mailto:${data.clientEmail ?? ''}?subject=${subject}&body=${body}`)
+  }
 
-      const res = await fetch('/api/send-quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: data.clientEmail,
-          quoteNumber: data.quoteNumber,
-          clientCompany: data.clientCompany,
-          htmlContent,
-        }),
-      })
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData?.error || 'Erro ao enviar e-mail')
-      }
-      setEmailStatus('success')
-    } catch (err: unknown) {
-      console.error(err)
-      setEmailStatus('error')
-    } finally {
-      setIsSending(false)
-    }
+  function handlePrint() {
+    if (!data) return
+    const prev = document.title
+    document.title = `Shiplog Pharma - Cotação ${data.quoteNumber}`
+    window.print()
+    setTimeout(() => { document.title = prev }, 2000)
   }
 
   useEffect(() => {
@@ -125,7 +96,10 @@ ${innerHtml}
 
   useEffect(() => {
     if (!data) return
-    const timer = setTimeout(() => { window.print() }, 800)
+    const timer = setTimeout(() => {
+      document.title = `Shiplog Pharma - Cotação ${data.quoteNumber}`
+      window.print()
+    }, 800)
     return () => clearTimeout(timer)
   }, [data])
 
@@ -177,7 +151,7 @@ ${innerHtml}
         {/* Botões — ocultos na impressão */}
         <div className="no-print flex items-center gap-3 px-6 py-3 border-b border-gray-200 bg-gray-50"
           style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-          <button onClick={() => window.print()}
+          <button onClick={handlePrint}
             className="px-4 py-2 rounded-lg text-white text-sm font-semibold hover:opacity-90 transition-opacity"
             style={{ backgroundColor: '#0C3460' }}>
             Imprimir / Salvar PDF
@@ -187,12 +161,10 @@ ${innerHtml}
             style={{ borderColor: '#0C3460', color: '#0C3460' }}>
             Voltar
           </button>
-          <button onClick={handleSendEmail} disabled={isSending}
-            className="no-print bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50">
-            {isSending ? 'Enviando...' : '📧 Enviar por E-mail'}
+          <button onClick={handleSendEmail}
+            className="no-print bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+            📧 Enviar por E-mail
           </button>
-          {emailStatus === 'success' && <span className="text-sm font-medium text-green-700">E-mail enviado com sucesso!</span>}
-          {emailStatus === 'error' && <span className="text-sm font-medium text-red-600">Erro ao enviar e-mail.</span>}
         </div>
 
         {/* Conteúdo */}

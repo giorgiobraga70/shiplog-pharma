@@ -1001,38 +1001,6 @@ export default function CotacaoPage() {
     }).catch(() => {})
   }
 
-  async function handleEnviarEmail() {
-    // 1. Salva/atualiza cotação com status 'sent'
-    try {
-      const idToUse = savedQuotationId || selectedHistoricoId
-      if (idToUse) {
-        // Já tem ID salvo — apenas atualiza status
-        await fetch(`/api/quotations/${idToUse}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'sent' }),
-        })
-        setSavedQuotationId(idToUse)
-      } else {
-        // Ainda não foi salva — salva agora com status sent
-        const res = await fetch('/api/quotations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(buildQuotationPayload('sent')),
-        })
-        const saved = await res.json().catch(() => ({}))
-        if (saved?.id) setSavedQuotationId(saved.id)
-      }
-    } catch {}
-
-    // 2. Abre mailto com o e-mail do cliente
-    const subject = encodeURIComponent(`Cotação ${quotationNumber} — Shiplog Pharma`)
-    const body = encodeURIComponent(
-      `Prezado(a) ${contato || empresa},\n\nSegue em anexo a cotação número ${quotationNumber}.\n\nAtenciosamente,\nShiplog Pharma`
-    )
-    const mailto = `mailto:${emailContato}?subject=${subject}&body=${body}`
-    window.location.href = mailto
-  }
 
   const inputClass =
     'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition'
@@ -1815,13 +1783,6 @@ export default function CotacaoPage() {
           onClick={handleGerarPdf}
         >
           Gerar PDF
-        </button>
-        <button
-          className="px-5 py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
-          style={{ borderColor: '#0C3460', color: '#0C3460' }}
-          onClick={handleEnviarEmail}
-        >
-          Enviar por E-mail
         </button>
       </div>
     </div>
