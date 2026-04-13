@@ -6,6 +6,7 @@ interface PrintData {
   quoteNumber: string
   date: string
   responsibleName?: string
+  userEmail?: string
   clientCompany: string
   clientCnpj?: string
   clientEmail: string
@@ -66,13 +67,60 @@ function num(value: number, decimals = 2) {
 export default function CotacaoPrintPage() {
   const [data, setData] = useState<PrintData | null>(null)
   const [error, setError] = useState(false)
-  function handleSendEmail() {
+  const [isSending, setIsSending] = useState(false)
+
+  async function handleSendEmail() {
     if (!data) return
-    const subject = encodeURIComponent(`Cotação Shiplog Pharma – ${data.quoteNumber} – ${data.clientCompany}`)
-    const body = encodeURIComponent(
-      `Prezado(a) ${data.clientContact || data.clientCompany},\n\nSegue em anexo a cotação número ${data.quoteNumber} conforme solicitado.\n\nAtenciosamente,\nShiplog Pharma`
-    )
-    window.open(`mailto:${data.clientEmail ?? ''}?subject=${subject}&body=${body}`)
+    if (!data.clientEmail) { alert('E-mail do cliente não informado na cotação.'); return }
+    setIsSending(true)
+    try {
+      // Gera PDF como base64 usando html2pdf.js (importação dinâmica — browser only)
+      const html2pdf = (await import('html2pdf.js')).default
+      const element = document.getElementById('quote-content')
+      if (!element) throw new Error('Conteúdo não encontrado.')
+
+      const pdfBlob: Blob = await html2pdf()
+        .set({
+          margin:      [8, 8, 8, 8],
+          filename:    `Shiplog Pharma - Cotação ${data.quoteNumber}.pdf`,
+          image:       { type: 'jpeg', quality: 0.95 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF:       { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        })
+        .from(element)
+        .outputPdf('blob')
+
+      // Converte blob para base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(pdfBlob)
+      })
+
+      const res = await fetch('/api/send-quote-with-pdf', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to:            data.clientEmail,
+          replyTo:       data.userEmail || undefined,
+          quoteNumber:   data.quoteNumber,
+          clientCompany: data.clientCompany,
+          clientContact: data.clientContact,
+          pdfBase64:     base64,
+        }),
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        throw new Error(e?.error || 'Erro ao enviar e-mail.')
+      }
+      alert('E-mail enviado com sucesso!')
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao enviar e-mail. Verifique o console.')
+    } finally {
+      setIsSending(false)
+    }
   }
 
   function handlePrint() {
@@ -161,9 +209,9 @@ export default function CotacaoPrintPage() {
             style={{ borderColor: '#0C3460', color: '#0C3460' }}>
             Voltar
           </button>
-          <button onClick={handleSendEmail}
-            className="no-print bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
-            📧 Enviar por E-mail
+          <button onClick={handleSendEmail} disabled={isSending}
+            className="no-print bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+            {isSending ? 'Gerando PDF e enviando...' : '📧 Enviar por E-mail'}
           </button>
         </div>
 

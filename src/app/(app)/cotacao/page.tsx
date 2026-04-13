@@ -227,6 +227,7 @@ export default function CotacaoPage() {
   // ID e nome do usuário logado (para created_by e responsible_name)
   const [currentUserId, setCurrentUserId] = useState<string>('')
   const [currentUserName, setCurrentUserName] = useState<string>('')
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [allUsers, setAllUsers] = useState<Array<{id: string; nome: string}>>([])
   const [responsavelNome, setResponsavelNome] = useState((draft?.responsavelNome as string) ?? '')
@@ -235,6 +236,7 @@ export default function CotacaoPage() {
       const { data } = await supabase.auth.getUser()
       if (!data.user?.id) return
       setCurrentUserId(data.user.id)
+      if (data.user.email) setCurrentUserEmail(data.user.email)
       // Busca nome e role no profiles
       try {
         const { data: profile } = await supabase
@@ -939,6 +941,7 @@ export default function CotacaoPage() {
       date: new Date().toLocaleDateString('pt-BR'),
       clientNotes: notasCliente || null,
       responsibleName: responsavelNome || currentUserName || '',
+      userEmail: currentUserEmail || '',
       clientCompany: empresa,
       clientCnpj: cnpj,
       clientEmail: emailContato,
