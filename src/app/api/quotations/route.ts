@@ -16,6 +16,13 @@ function extractNotes(q: Record<string, unknown>): string {
   return ''
 }
 
+// Extrai as observações para o cliente embutidas no totals JSON
+function extractClientNotes(q: Record<string, unknown>): string {
+  const t = q.totals as Record<string, unknown> | null
+  if (t?._cn && typeof t._cn === 'string') return t._cn
+  return ''
+}
+
 // Extrai anexos salvos no totals JSON
 function extractAttachments(q: Record<string, unknown>): unknown[] {
   const t = q.totals as Record<string, unknown> | null
@@ -37,6 +44,7 @@ export async function GET() {
       ...q,
       responsible_name: extractResponsible(q),
       internal_notes:   extractNotes(q),
+      client_notes:     extractClientNotes(q),
       attachments:      extractAttachments(q),
     }))
 
@@ -93,6 +101,7 @@ export async function POST(request: Request) {
       created_by,
       responsible_name: responsibleFromClient,
       internal_notes,
+      client_notes,
     } = body
 
     // Usa nome enviado pelo cliente; fallback via auth.admin se vier vazio
@@ -111,6 +120,7 @@ export async function POST(request: Request) {
       ...(totals ?? {}),
       _r:     responsible_name || undefined,
       _notes: internal_notes   || undefined,
+      _cn:    client_notes     || undefined,
     }
 
     // ── Tenta com colunas novas (created_by, responsible_name) ───────────────

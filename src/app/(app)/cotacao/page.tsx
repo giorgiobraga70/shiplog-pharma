@@ -120,6 +120,10 @@ interface HistoricoItem {
   validity_days?: number
   created_at: string
   items?: Array<{ partNumber: string; qtyBoxes: number }> | null
+  internal_notes?: string
+  client_notes?: string
+  responsible_name?: string
+  totals?: Record<string, unknown>
 }
 
 function formatDateBR(date: Date): string {
@@ -407,6 +411,9 @@ export default function CotacaoPage() {
             setPrazo(String(q.delivery_days ?? 90))
             setFornecedor(q.supplier ?? 'Four Star')
             if (q.usd_brl) setUsdBrl(String(q.usd_brl))
+            // Notas
+            setNotasInternas(q.internal_notes ?? (q.totals?._notes as string) ?? '')
+            setNotasCliente(q.client_notes ?? (q.totals?._cn as string) ?? '')
             if (q.client_state) {
               loadCidades(q.client_state).then(() => setCidade(q.client_city ?? ''))
             } else {
@@ -600,6 +607,9 @@ export default function CotacaoPage() {
     setPagamento(q.payment_terms ?? '50% como garantia no ato do pedido + 50% antes da retirada/entrega')
     setPrazo(String(q.delivery_days ?? 90))
     setFornecedor(q.supplier ?? 'Four Star')
+    // Notas
+    setNotasInternas(q.internal_notes ?? (q.totals?._notes as string) ?? '')
+    setNotasCliente(q.client_notes ?? (q.totals?._cn as string) ?? '')
     // Carregar cidades do estado restaurado
     if (q.client_state) loadCidades(q.client_state).then(() => {
       setCidade(q.client_city ?? '')
@@ -878,6 +888,7 @@ export default function CotacaoPage() {
           created_by: currentUserId || null,
           responsible_name: responsavelNome || currentUserName || null,
           internal_notes: notasInternas || null,
+          client_notes: notasCliente || null,
           items: lineItems.map((li) => ({
             description: li.product.description,
             partNumber: li.product.partNumber,
@@ -930,6 +941,7 @@ export default function CotacaoPage() {
       created_by: currentUserId || null,
       responsible_name: responsavelNome || currentUserName || null,
       internal_notes: notasInternas || null,
+      client_notes: notasCliente || null,
       items: lineItems.map((li) => ({
         description: li.product.description,
         partNumber: li.product.partNumber,
