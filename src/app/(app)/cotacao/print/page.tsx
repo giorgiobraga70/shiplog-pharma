@@ -193,10 +193,14 @@ export default function CotacaoPrintPage() {
   return (
     <>
       {/* CSS de impressão */}
-      <style media="print">{`
-        @page { size: A4 landscape; margin: 8mm; }
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .no-print { display: none !important; }
+      <style>{`
+        @media print {
+          @page { size: A4 landscape; margin: 8mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .no-print { display: none !important; }
+          header { display: none !important; }
+          .min-h-screen { min-height: unset !important; }
+        }
       `}</style>
 
       <div className="bg-white min-h-screen"
