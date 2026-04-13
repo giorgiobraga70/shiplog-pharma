@@ -74,21 +74,26 @@ export default function CotacaoPrintPage() {
     if (!data.clientEmail) { alert('E-mail do cliente não informado na cotação.'); return }
     setIsSending(true)
     try {
-      // Gera PDF como base64 usando html2pdf.js (importação dinâmica — browser only)
-      const html2pdf = (await import('html2pdf.js')).default
       const element = document.getElementById('quote-content')
-      if (!element) throw new Error('Conteúdo não encontrado.')
+      if (!element) throw new Error('Elemento #quote-content não encontrado.')
 
-      const pdfBlob: Blob = await html2pdf()
+      // Import dinâmico — funciona apenas no browser
+      const mod = await import('html2pdf.js')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const html2pdfFn: any = (mod as any).default ?? mod
+
+      const worker = html2pdfFn()
         .set({
-          margin:      [8, 8, 8, 8],
-          filename:    `Shiplog Pharma - Cotação ${data.quoteNumber}.pdf`,
+          margin:      [6, 6, 6, 6],
           image:       { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
           jsPDF:       { unit: 'mm', format: 'a4', orientation: 'landscape' },
         })
         .from(element)
-        .outputPdf('blob')
+
+      // Obtém o jsPDF interno e exporta como blob
+      const jsPdfInstance = await worker.toPdf().get('pdf')
+      const pdfBlob: Blob = jsPdfInstance.output('blob')
 
       // Converte blob para base64
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -112,12 +117,13 @@ export default function CotacaoPrintPage() {
       })
       if (!res.ok) {
         const e = await res.json().catch(() => ({}))
-        throw new Error(e?.error || 'Erro ao enviar e-mail.')
+        throw new Error(e?.error || `Erro HTTP ${res.status}`)
       }
       alert('E-mail enviado com sucesso!')
     } catch (err) {
-      console.error(err)
-      alert('Erro ao enviar e-mail. Verifique o console.')
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('handleSendEmail error:', err)
+      alert(`Erro ao enviar e-mail:\n${msg}`)
     } finally {
       setIsSending(false)
     }

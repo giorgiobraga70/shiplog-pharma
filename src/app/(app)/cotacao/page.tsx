@@ -605,6 +605,26 @@ export default function CotacaoPage() {
       setCidade(q.client_city ?? '')
     })
     else setCidade(q.client_city ?? '')
+    // Se campos de contato/endereço estão vazios (cotação antiga), preenche do cadastro de clientes
+    if (!q.client_phone && !q.client_cnpj && !q.client_address && q.client_company) {
+      fetch('/api/clients')
+        .then(r => r.json())
+        .then((cls: Array<{ empresa: string; telefone?: string; cnpj?: string; endereco?: string; cep?: string; cidade?: string; estado?: string }>) => {
+          const match = cls.find(c => c.empresa.toLowerCase() === (q.client_company ?? '').toLowerCase())
+          if (!match) return
+          if (match.telefone) setTelefone(match.telefone)
+          if (match.cnpj)     setCnpj(match.cnpj)
+          if (match.endereco) setEndereco(match.endereco)
+          if (match.cep)      setCep(match.cep)
+          if (match.estado) {
+            setEstado(match.estado)
+            loadCidades(match.estado).then(() => { if (match.cidade) setCidade(match.cidade) })
+          } else if (match.cidade) {
+            setCidade(match.cidade)
+          }
+        })
+        .catch(() => {})
+    }
     // Restaurar itens da cotação
     const fornecedorAtual = q.supplier ?? 'Four Star'
     const rateAtual = q.usd_brl && q.usd_brl > 0 ? q.usd_brl : (parseFloat(usdBrl.replace(',', '.')) || 1)
