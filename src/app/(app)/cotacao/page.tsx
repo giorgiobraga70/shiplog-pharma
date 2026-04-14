@@ -114,7 +114,8 @@ interface HistoricoItem {
   client_state?: string
   client_cep?: string
   supplier?: string
-  usd_brl?: number
+  usd_brl?: number       // legado
+  usd_brl_rate?: number  // coluna real no banco
   payment_terms?: string
   delivery_days?: number
   validity_days?: number
@@ -410,7 +411,8 @@ export default function CotacaoPage() {
             setPagamento(q.payment_terms ?? '50% como garantia no ato do pedido + 50% antes da retirada/entrega')
             setPrazo(String(q.delivery_days ?? 90))
             setFornecedor(q.supplier ?? 'Four Star')
-            if (q.usd_brl) setUsdBrl(String(q.usd_brl))
+            const savedRate1 = q.usd_brl_rate ?? q.usd_brl
+            if (savedRate1 && savedRate1 > 0) setUsdBrl(String(savedRate1).replace('.', ','))
             // Notas
             setNotasInternas(q.internal_notes ?? (q.totals?._notes as string) ?? '')
             setNotasCliente(q.client_notes ?? (q.totals?._cn as string) ?? '')
@@ -607,6 +609,8 @@ export default function CotacaoPage() {
     setPagamento(q.payment_terms ?? '50% como garantia no ato do pedido + 50% antes da retirada/entrega')
     setPrazo(String(q.delivery_days ?? 90))
     setFornecedor(q.supplier ?? 'Four Star')
+    const savedRate2 = q.usd_brl_rate ?? q.usd_brl
+    if (savedRate2 && savedRate2 > 0) setUsdBrl(String(savedRate2).replace('.', ','))
     // Notas
     setNotasInternas(q.internal_notes ?? (q.totals?._notes as string) ?? '')
     setNotasCliente(q.client_notes ?? (q.totals?._cn as string) ?? '')
@@ -637,7 +641,8 @@ export default function CotacaoPage() {
     }
     // Restaurar itens da cotação
     const fornecedorAtual = q.supplier ?? 'Four Star'
-    const rateAtual = q.usd_brl && q.usd_brl > 0 ? q.usd_brl : (parseFloat(usdBrl.replace(',', '.')) || 1)
+    const savedBrl2 = q.usd_brl_rate ?? q.usd_brl
+    const rateAtual = savedBrl2 && savedBrl2 > 0 ? savedBrl2 : (parseFloat(usdBrl.replace(',', '.')) || 1)
     const restored: LineItem[] = []
     for (const si of (q.items ?? [])) {
       const product = products.find(p => p.partNumber === si.partNumber)
@@ -726,7 +731,8 @@ export default function CotacaoPage() {
       const q = historico.find(h => h.id === editingIdOnLoad)
       if (!q?.items?.length) { itemsRestoredRef.current = true; return }
       const fornecedorAtual = q.supplier ?? 'Four Star'
-      const rateAtual = q.usd_brl && q.usd_brl > 0 ? q.usd_brl : (parseFloat(usdBrl.replace(',', '.')) || 1)
+      const savedBrl = q.usd_brl_rate ?? q.usd_brl
+      const rateAtual = savedBrl && savedBrl > 0 ? savedBrl : (parseFloat(usdBrl.replace(',', '.')) || 1)
       const restored: LineItem[] = []
       for (const si of q.items) {
         const product = products.find(p => p.partNumber === si.partNumber)
@@ -933,7 +939,7 @@ export default function CotacaoPage() {
       client_email: emailContato,
       client_contact: contato,
       supplier: fornecedor,
-      usd_brl: 5.25,
+      usd_brl: parseFloat(usdBrl.replace(',', '.')) || null,
       payment_terms: pagamento,
       delivery_days: parseInt(prazo) || 30,
       destination_port: cidade ? `${cidade}${estado ? ' - ' + estado : ''}` : '',
