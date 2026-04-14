@@ -326,11 +326,6 @@ export default function HistoricoPage() {
   function handleEditarCotacao(q: Quotation) {
     localStorage.setItem('cotacao_editing_id', q.id)
     localStorage.setItem('cotacao_draft_v2', JSON.stringify({
-      fornecedor:    q.supplier        ?? 'Four Star',
-      usdBrl:        q.usd_brl_rate    ? String(q.usd_brl_rate).replace('.', ',') : '',
-      pagamento:     q.payment_terms   ?? '',
-      prazo:         String(q.delivery_days  ?? 90),
-      prazoValidade: String(q.validity_days  ?? 30),
       savedItems: (q.items ?? []).map(item => ({
         partNumber: item.partNumber,
         qtyBoxes:   item.qtyBoxes,
