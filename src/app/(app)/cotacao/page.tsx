@@ -40,6 +40,61 @@ function applyDiscount(bd: PricingBreakdown, discount: number): PricingBreakdown
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function breakdownFromSavedItem(si: any, product: ExtProduct | undefined, fornecedor: string, rate: number): PricingBreakdown | null {
+  const hasFull = (si.finalPriceUnit ?? 0) > 0 && si.finalPriceUnitSIpi != null
+  if (hasFull) {
+    return {
+      productId: product?.id ?? si.partNumber,
+      description: si.description ?? '',
+      partNumber: si.partNumber,
+      qtyBoxes: si.qtyBoxes,
+      qtyUnits: si.qtyUnits ?? si.qtyBoxes * (si.pcsPerBox ?? product?.pcsPerBox ?? 1),
+      volumeM3: si.volumeM3 ?? 0,
+      weightKg: si.weightKg ?? 0,
+      fobUsdBox: 0, navalUsdBox: 0, insuranceUsdBox: 0, cifUsdBox: 0, cifBrlBox: 0,
+      iiValue: 0, ipiValue: 0, pisValue: 0, cofinsValue: 0, icmsValue: 0, totalTaxesBrl: 0,
+      customsPerBox: 0, basePriceBox: si.finalPriceBox, basePriceUnit: si.finalPriceUnit, markupRate: 0,
+      finalPriceUnit:     si.finalPriceUnit,
+      finalPriceBox:      si.finalPriceBox,
+      totalBrl:           si.totalBrl,
+      finalPriceUnitSIpi: si.finalPriceUnitSIpi,
+      finalPriceBoxSIpi:  si.finalPriceBoxSIpi,
+      totalSIpiBrl:       si.totalSIpiBrl,
+      finalPriceUnitSImp: si.finalPriceUnitSImp,
+      finalPriceBoxSImp:  si.finalPriceBoxSImp,
+      totalSImpBrl:       si.totalSImpBrl,
+    }
+  }
+  if (product) return buildBreakdown(product, si.qtyBoxes, fornecedor, rate)
+  return null
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function productFromSavedItem(si: any): ExtProduct {
+  return {
+    id: si.partNumber,
+    description: si.description ?? si.partNumber,
+    partNumber: si.partNumber,
+    productType: '',
+    ncmCode: si.ncmCode ?? '',
+    pcsPerBox: Number(si.pcsPerBox) || 1,
+    weightGrossKg: 0,
+    volumeBoxM3: 0,
+    fobUsd: 0,
+    volumeMl: si.volumeMl ?? null,
+    tamanho: si.tamanho ?? null,
+    taxRates: { ii: 0, ipi: 0, pis: 0, cofins: 0, icms: 0 },
+    markupTable: { qty10: 0.70, qty20: 0.65, qty50: 0.60, qty100: 0.55, qty200: 0.50 },
+    un_cimp_cipi_fourstar: null, cx_cimp_cipi_fourstar: null,
+    un_cimp_sipi_fourstar: null, cx_cimp_sipi_fourstar: null,
+    un_simp_fourstar: null, cx_simp_fourstar: null,
+    un_cimp_cipi_munan: null, cx_cimp_cipi_munan: null,
+    un_cimp_sipi_munan: null, cx_cimp_sipi_munan: null,
+    un_simp_munan: null, cx_simp_munan: null,
+  }
+}
+
 function buildBreakdown(product: ExtProduct, qtyBoxes: number, fornecedor: string, usdBrl = 1): PricingBreakdown {
   const m    = fornecedor === 'Munan'
   const rate = usdBrl > 0 ? usdBrl : 1
@@ -120,7 +175,17 @@ interface HistoricoItem {
   delivery_days?: number
   validity_days?: number
   created_at: string
-  items?: Array<{ partNumber: string; qtyBoxes: number }> | null
+  items?: Array<{
+    description?: string; partNumber: string; ncmCode?: string
+    volumeMl?: number | null; tamanho?: string | null; pcsPerBox?: number
+    qtyBoxes: number; qtyUnits?: number; volumeM3?: number; weightKg?: number
+    finalPriceUnit?: number; finalPriceBox?: number; totalBrl?: number
+    finalPriceUnitSIpi?: number; finalPriceBoxSIpi?: number; totalSIpiBrl?: number
+    finalPriceUnitSImp?: number; finalPriceBoxSImp?: number; totalSImpBrl?: number
+  }> | null
+  local_entrega?: string
+  frete_entrega?: number
+  global_discount?: number
   internal_notes?: string
   client_notes?: string
   responsible_name?: string
@@ -416,6 +481,16 @@ export default function CotacaoPage() {
             // Notas
             setNotasInternas(q.internal_notes ?? (q.totals?._notes as string) ?? '')
             setNotasCliente(q.client_notes ?? (q.totals?._cn as string) ?? '')
+            // Campos de entrega/desconto
+            if (q.local_entrega || q.totals?._local) setLocalEntrega((q.local_entrega ?? q.totals?._local as string) || 'Armazém Shiplog Hortolândia')
+            if (q.frete_entrega != null || q.totals?._frete != null) {
+              const fr = q.frete_entrega ?? (q.totals?._frete as number)
+              if (fr) setFreteEntrega(String(fr).replace('.', ','))
+            }
+            if (q.global_discount != null || q.totals?._disc) {
+              const disc = q.global_discount ?? (q.totals?._disc as string)
+              if (disc) setGlobalDiscount(String(disc))
+            }
             if (q.client_state) {
               loadCidades(q.client_state).then(() => setCidade(q.client_city ?? ''))
             } else {
@@ -614,6 +689,16 @@ export default function CotacaoPage() {
     // Notas
     setNotasInternas(q.internal_notes ?? (q.totals?._notes as string) ?? '')
     setNotasCliente(q.client_notes ?? (q.totals?._cn as string) ?? '')
+    // Campos de entrega/desconto
+    if (q.local_entrega || q.totals?._local) setLocalEntrega((q.local_entrega ?? q.totals?._local as string) || 'Armazém Shiplog Hortolândia')
+    if (q.frete_entrega != null || q.totals?._frete != null) {
+      const fr = q.frete_entrega ?? (q.totals?._frete as number)
+      if (fr) setFreteEntrega(String(fr).replace('.', ','))
+    }
+    if (q.global_discount != null || q.totals?._disc) {
+      const disc = q.global_discount ?? (q.totals?._disc as string)
+      if (disc) setGlobalDiscount(String(disc))
+    }
     // Carregar cidades do estado restaurado
     if (q.client_state) loadCidades(q.client_state).then(() => {
       setCidade(q.client_city ?? '')
@@ -646,10 +731,10 @@ export default function CotacaoPage() {
     const restored: LineItem[] = []
     for (const si of (q.items ?? [])) {
       const product = products.find(p => p.partNumber === si.partNumber)
-      if (product) {
-        const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual, rateAtual)
-        restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
-      }
+      const breakdown = breakdownFromSavedItem(si, product, fornecedorAtual, rateAtual)
+      if (!breakdown) continue
+      const prod = product ?? productFromSavedItem(si)
+      restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product: prod, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
     }
     setLineItems(restored)
   }
@@ -736,10 +821,10 @@ export default function CotacaoPage() {
       const restored: LineItem[] = []
       for (const si of q.items) {
         const product = products.find(p => p.partNumber === si.partNumber)
-        if (product) {
-          const breakdown = buildBreakdown(product, si.qtyBoxes, fornecedorAtual, rateAtual)
-          restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
-        }
+        const breakdown = breakdownFromSavedItem(si, product, fornecedorAtual, rateAtual)
+        if (!breakdown) continue
+        const prod = product ?? productFromSavedItem(si)
+        restored.push({ id: `r-${si.partNumber}-${Math.random()}`, product: prod, qtyBoxes: si.qtyBoxes, discount: 0, breakdown })
       }
       if (restored.length > 0) setLineItems(restored)
       itemsRestoredRef.current = true
@@ -898,14 +983,23 @@ export default function CotacaoPage() {
           items: lineItems.map((li) => ({
             description: li.product.description,
             partNumber: li.product.partNumber,
+            ncmCode: li.product.ncmCode,
+            volumeMl: li.product.volumeMl,
+            tamanho: li.product.tamanho,
             pcsPerBox: li.product.pcsPerBox,
             qtyBoxes: li.qtyBoxes,
             qtyUnits: li.breakdown.qtyUnits,
             volumeM3: li.breakdown.volumeM3,
             weightKg: li.breakdown.weightKg,
-            finalPriceUnit: li.breakdown.finalPriceUnit,
-            finalPriceBox: li.breakdown.finalPriceBox,
-            totalBrl: li.breakdown.totalBrl,
+            finalPriceUnit:     li.breakdown.finalPriceUnit,
+            finalPriceBox:      li.breakdown.finalPriceBox,
+            totalBrl:           li.breakdown.totalBrl,
+            finalPriceUnitSIpi: li.breakdown.finalPriceUnitSIpi,
+            finalPriceBoxSIpi:  li.breakdown.finalPriceBoxSIpi,
+            totalSIpiBrl:       li.breakdown.totalSIpiBrl,
+            finalPriceUnitSImp: li.breakdown.finalPriceUnitSImp,
+            finalPriceBoxSImp:  li.breakdown.finalPriceBoxSImp,
+            totalSImpBrl:       li.breakdown.totalSImpBrl,
           })),
           totals: {
             boxes: totals.boxes,
@@ -915,6 +1009,9 @@ export default function CotacaoPage() {
             grandTotalBrl: totals.totalFinal,
             subtotalBrl: totals.total,
             globalDiscountPct: totals.discPct,
+            _local: localEntrega || undefined,
+            _frete: freteEntrega ? parseFloat(freteEntrega.replace(',', '.')) || undefined : undefined,
+            _disc: globalDiscount || undefined,
           },
           status: 'draft',
         }),
@@ -951,14 +1048,23 @@ export default function CotacaoPage() {
       items: lineItems.map((li) => ({
         description: li.product.description,
         partNumber: li.product.partNumber,
+        ncmCode: li.product.ncmCode,
+        volumeMl: li.product.volumeMl,
+        tamanho: li.product.tamanho,
         pcsPerBox: li.product.pcsPerBox,
         qtyBoxes: li.qtyBoxes,
         qtyUnits: li.breakdown.qtyUnits,
         volumeM3: li.breakdown.volumeM3,
         weightKg: li.breakdown.weightKg,
-        finalPriceUnit: li.breakdown.finalPriceUnit,
-        finalPriceBox: li.breakdown.finalPriceBox,
-        totalBrl: li.breakdown.totalBrl,
+        finalPriceUnit:     li.breakdown.finalPriceUnit,
+        finalPriceBox:      li.breakdown.finalPriceBox,
+        totalBrl:           li.breakdown.totalBrl,
+        finalPriceUnitSIpi: li.breakdown.finalPriceUnitSIpi,
+        finalPriceBoxSIpi:  li.breakdown.finalPriceBoxSIpi,
+        totalSIpiBrl:       li.breakdown.totalSIpiBrl,
+        finalPriceUnitSImp: li.breakdown.finalPriceUnitSImp,
+        finalPriceBoxSImp:  li.breakdown.finalPriceBoxSImp,
+        totalSImpBrl:       li.breakdown.totalSImpBrl,
       })),
       totals: {
         boxes: totals.boxes,
@@ -968,6 +1074,9 @@ export default function CotacaoPage() {
         grandTotalBrl: totals.totalFinal,
         subtotalBrl: totals.total,
         globalDiscountPct: totals.discPct,
+        _local: localEntrega || undefined,
+        _frete: freteEntrega ? parseFloat(freteEntrega.replace(',', '.')) || undefined : undefined,
+        _disc: globalDiscount || undefined,
       },
       status,
     }
