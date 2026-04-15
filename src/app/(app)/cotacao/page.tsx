@@ -413,6 +413,8 @@ export default function CotacaoPage() {
   const [qtyPiecesInput, setQtyPiecesInput] = useState('')
   const [discountInput, setDiscountInput] = useState('')
   const [lineItems, setLineItems] = useState<LineItem[]>([])
+  // ID do item sendo editado (pre-fill form sem remover da lista)
+  const [editingLineItemId, setEditingLineItemId] = useState<string | null>(null)
 
   // Combobox de busca de produto
   const [productSearch, setProductSearch] = useState('')
@@ -921,10 +923,20 @@ export default function CotacaoPage() {
     const rawBreakdown = buildBreakdown(product, qty, fornecedor, rate)
     const breakdown = applyDiscount(rawBreakdown, discount)
 
-    setLineItems((prev) => [
-      ...prev,
-      { id: `${Date.now()}`, product, qtyBoxes: qty, discount, breakdown },
-    ])
+    if (editingLineItemId) {
+      // Substituir o item sendo editado, mantendo sua posição na lista
+      setLineItems((prev) => prev.map((li) =>
+        li.id === editingLineItemId
+          ? { id: editingLineItemId, product, qtyBoxes: qty, discount, breakdown }
+          : li
+      ))
+      setEditingLineItemId(null)
+    } else {
+      setLineItems((prev) => [
+        ...prev,
+        { id: `${Date.now()}`, product, qtyBoxes: qty, discount, breakdown },
+      ])
+    }
     setQtyBoxesInput('')
     setQtyPiecesInput('')
     setDiscountInput('')
@@ -1616,10 +1628,23 @@ export default function CotacaoPage() {
             onClick={handleAddItem}
             disabled={loadingProducts || products.length === 0}
             className="px-4 py-2 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: '#0C3460' }}
+            style={{ backgroundColor: editingLineItemId ? '#1a7f4b' : '#0C3460' }}
           >
-            + Adicionar
+            {editingLineItemId ? '✓ Salvar alteração' : '+ Adicionar'}
           </button>
+          {editingLineItemId && (
+            <button
+              onClick={() => {
+                setEditingLineItemId(null)
+                setQtyBoxesInput('')
+                setQtyPiecesInput('')
+                setDiscountInput('')
+              }}
+              className="px-3 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:bg-gray-100 whitespace-nowrap"
+            >
+              Cancelar
+            </button>
+          )}
         </div>
 
         {/* Tabela */}
@@ -1650,7 +1675,7 @@ export default function CotacaoPage() {
                 </tr>
               ) : (
                 lineItems.map((li, idx) => (
-                  <tr key={li.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={li.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${editingLineItemId === li.id ? 'bg-amber-50 outline outline-2 outline-amber-400' : ''}`}>
                     <td className="px-3 py-2.5 text-gray-500">{idx + 1}</td>
                     <td className="px-3 py-2.5 text-gray-900 font-medium">{li.product.description}</td>
                     <td className="px-3 py-2.5 text-gray-500 font-mono">{li.product.partNumber}</td>
@@ -1696,15 +1721,17 @@ export default function CotacaoPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          // Pre-fill product form with this item's data
-                          setSelectedProductId(li.product.id)
+                          // Cancelar edição anterior se houver
+                          setEditingLineItemId(li.id)
+                          // Busca produto real na lista pelo partNumber (fallback se id não bater)
+                          const realProduct = products.find(p => p.id === li.product.id)
+                            ?? products.find(p => p.partNumber === li.product.partNumber)
+                          setSelectedProductId(realProduct?.id ?? li.product.id)
                           setProductSearch(`${li.product.description} — ${li.product.partNumber}`)
                           setQtyBoxesInput(String(li.qtyBoxes))
                           setQtyPiecesInput(String(li.qtyBoxes * li.product.pcsPerBox))
                           setDiscountInput(li.discount !== 0 ? String(li.discount) : '')
-                          // Remove from list
-                          handleRemoveItem(li.id)
-                          // Scroll to product section
+                          // NÃO remove o item — só substitui quando "Adicionar" for clicado
                           document.getElementById('produto-section')?.scrollIntoView({ behavior: 'smooth' })
                         }}
                         className="text-blue-600 hover:text-blue-900 transition-colors text-xs font-semibold underline mr-2"
