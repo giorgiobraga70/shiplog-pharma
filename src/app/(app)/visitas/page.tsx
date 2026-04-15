@@ -85,7 +85,7 @@ export default function VisitasPage() {
   const [editingVisit,     setEditingVisit]     = useState<Visit | null>(null)
   const [formClientId,      setFormClientId]      = useState('')
   const [formClientCompany, setFormClientCompany] = useState('')
-  const [formClientEmail,   setFormClientEmail]   = useState('')
+  const [formClientEmails,  setFormClientEmails]  = useState<string[]>([''])
   const [formClientContato, setFormClientContato] = useState('')
   const [formClientTelefone,setFormClientTelefone]= useState('')
   const [formClientSearch,  setFormClientSearch]  = useState('')
@@ -147,7 +147,7 @@ export default function VisitasPage() {
     setEditingVisit(null)
     setFormClientId('')
     setFormClientCompany('')
-    setFormClientEmail('')
+    setFormClientEmails([''])
     setFormClientContato('')
     setFormClientTelefone('')
     setFormClientSearch('')
@@ -165,7 +165,7 @@ export default function VisitasPage() {
     setEditingVisit(visit)
     setFormClientId(visit.client_id ?? '')
     setFormClientCompany(visit.client_company)
-    setFormClientEmail(visit.client_email ?? '')
+    setFormClientEmails(visit.client_email ? visit.client_email.split(',').map(e => e.trim()).filter(Boolean) : [''])
     setFormClientContato('')
     setFormClientTelefone('')
     setFormClientSearch(visit.client_company)
@@ -202,10 +202,11 @@ export default function VisitasPage() {
       const scheduledAt = new Date(`${formDate}T${formTime}:00`).toISOString()
       const prevScheduledAt = editingVisit?.scheduled_at
 
+      const emailList = formClientEmails.map(e => e.trim()).filter(Boolean)
       const payload = {
         client_id:        formClientId    || null,
         client_company:   formClientCompany.trim(),
-        client_email:     formClientEmail.trim() || null,
+        client_email:     emailList.join(', ') || null,
         responsible_id:   formResponsavelId || null,
         responsible_name: formResponsavelNome,
         scheduled_at:     scheduledAt,
@@ -233,13 +234,13 @@ export default function VisitasPage() {
       }
 
       // Send confirmation/reschedule email
-      if (formSendEmail && formClientEmail.trim()) {
+      if (formSendEmail && emailList.length > 0) {
         const emailType = editingVisit && prevScheduledAt !== scheduledAt ? 'reagendamento' : 'confirmacao'
         await fetch('/api/send-visit-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to:              formClientEmail.trim(),
+            to:              emailList.join(', '),
             clientCompany:   formClientCompany,
             scheduledAt,
             responsibleName: formResponsavelNome,
@@ -308,12 +309,18 @@ export default function VisitasPage() {
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
       const path = `${selectedVisit.id}/${Date.now()}-${safeName}`
-      const { error } = await supabase.storage.from('visit-attachments').upload(path, file, { upsert: false })
-      if (error) { alert('Erro ao enviar arquivo: ' + error.message); return }
-      const { data: urlData } = supabase.storage.from('visit-attachments').getPublicUrl(path)
+
+      // Upload via server route to bypass RLS
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('path', path)
+      const uploadRes = await fetch('/api/visits/upload', { method: 'POST', body: fd })
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok) { alert('Erro ao enviar arquivo: ' + (uploadData.error ?? uploadRes.statusText)); return }
+
       const newAtt: Attachment = {
         name: file.name, path,
-        url:  urlData.publicUrl,
+        url:  uploadData.url,
         size: file.size,
         type: file.type || 'application/octet-stream',
         at:   new Date().toISOString(),
@@ -348,6 +355,61 @@ export default function VisitasPage() {
     const updatedVisit = { ...selectedVisit, attachments: updatedAtts }
     setSelectedVisit(updatedVisit)
     setVisits(v => v.map(x => x.id === selectedVisit.id ? updatedVisit : x))
+  }
+
+  // ── Print / PDF report ────────────────────────────────────────────────────
+
+  function printReport(visit: Visit) {
+    const dtFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Relatório de Visita – ${visit.client_company}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1E293B; padding: 32px 40px; }
+  .logo { font-size: 20px; font-weight: 800; color: #0C447C; letter-spacing: 1px; margin-bottom: 4px; }
+  .subtitle { font-size: 11px; color: #6B7280; margin-bottom: 24px; }
+  h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #6B7280; margin-bottom: 20px; }
+  table.info { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  table.info td { padding: 6px 10px; border: 1px solid #E2E8F0; font-size: 13px; }
+  table.info td:first-child { font-weight: 600; width: 160px; background: #F8FAFC; }
+  .section-title { font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
+  .report-box { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px; white-space: pre-wrap; line-height: 1.7; font-size: 13px; min-height: 60px; }
+  .status-badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+  .status-agendada  { background: #E6F1FB; color: #0C447C; }
+  .status-realizada { background: #EAF3DE; color: #27500A; }
+  .status-cancelada { background: #F1EFE8; color: #444441; }
+  .footer { margin-top: 40px; font-size: 11px; color: #9CA3AF; text-align: right; border-top: 1px solid #E2E8F0; padding-top: 8px; }
+  @media print { body { padding: 20px 28px; } }
+</style>
+</head>
+<body>
+  <div class="logo">SHIPLOG PHARMA</div>
+  <div class="subtitle">Relatório de Visita Comercial</div>
+  <h1>${visit.client_company}</h1>
+  <div class="meta">${dtFmt.format(new Date(visit.scheduled_at))} · ${visit.duration_min} min</div>
+  <table class="info">
+    <tr><td>Responsável</td><td>${visit.responsible_name}</td></tr>
+    ${visit.client_email ? `<tr><td>E-mail</td><td>${visit.client_email}</td></tr>` : ''}
+    <tr><td>Status</td><td><span class="status-badge status-${visit.status}">${visit.status.charAt(0).toUpperCase() + visit.status.slice(1)}</span></td></tr>
+    ${visit.report_filled_at ? `<tr><td>Relatório em</td><td>${dtFmt.format(new Date(visit.report_filled_at))}</td></tr>` : ''}
+  </table>
+  <div class="section-title">Relatório da visita</div>
+  <div class="report-box">${visit.report_description ? visit.report_description.replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Nenhum relatório preenchido.'}</div>
+  ${(visit.attachments?.length ?? 0) > 0 ? `
+  <div class="section-title">Anexos</div>
+  <ul style="padding-left:18px;font-size:13px;line-height:2">
+    ${visit.attachments.map(a => `<li><a href="${a.url}" style="color:#0C447C">${a.name}</a></li>`).join('')}
+  </ul>` : ''}
+  <div class="footer">Gerado em ${dtFmt.format(new Date())} · Shiplog Pharma</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`
+    const win = window.open('', '_blank', 'width=800,height=700')
+    if (win) { win.document.write(html); win.document.close() }
   }
 
   // ── Send cancel email ──────────────────────────────────────────────────────
@@ -610,13 +672,14 @@ export default function VisitasPage() {
                 <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700 }}>Responsável</th>
                 <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Status</th>
                 <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Relatório</th>
+                <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Calendário</th>
                 <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Ações</th>
               </tr>
             </thead>
             <tbody>
               {filteredVisits.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>
+                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>
                     Nenhuma visita encontrada.
                   </td>
                 </tr>
@@ -646,6 +709,35 @@ export default function VisitasPage() {
                       {(visit.attachments?.length ?? 0) > 0 && (
                         <span style={{ marginLeft: 6, color: '#0C447C', fontSize: 12 }}>📎 {visit.attachments.length}</span>
                       )}
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center', alignItems: 'center' }}>
+                        <a
+                          href={buildGoogleCalLink(visit)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Google Calendar"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, border: '1px solid #E2E8F0', background: 'white', textDecoration: 'none' }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#4285F4" strokeWidth="2"/><line x1="16" y1="2" x2="16" y2="6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/><line x1="8" y1="2" x2="8" y2="6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/><line x1="3" y1="10" x2="21" y2="10" stroke="#4285F4" strokeWidth="2"/></svg>
+                        </a>
+                        <a
+                          href={buildOutlookLink(visit)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Outlook"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, border: '1px solid #E2E8F0', background: 'white', textDecoration: 'none' }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#0078D4" strokeWidth="2"/><line x1="16" y1="2" x2="16" y2="6" stroke="#0078D4" strokeWidth="2" strokeLinecap="round"/><line x1="8" y1="2" x2="8" y2="6" stroke="#0078D4" strokeWidth="2" strokeLinecap="round"/><line x1="3" y1="10" x2="21" y2="10" stroke="#0078D4" strokeWidth="2"/></svg>
+                        </a>
+                        <button
+                          onClick={() => downloadIcs(visit)}
+                          title="Baixar .ics"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, border: '1px solid #E2E8F0', background: 'white', cursor: 'pointer', padding: 0 }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="17" width="18" height="4" rx="1" stroke="#374151" strokeWidth="2"/></svg>
+                        </button>
+                      </div>
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <button
@@ -824,7 +916,7 @@ export default function VisitasPage() {
                     setFormClientSearch(e.target.value)
                     setFormClientCompany(e.target.value)
                     setFormClientId('')
-                    setFormClientEmail('')
+                    setFormClientEmails([''])
                     setFormClientOpen(true)
                   }}
                   onFocus={() => setFormClientOpen(true)}
@@ -842,17 +934,21 @@ export default function VisitasPage() {
                           setFormClientSearch(c.empresa)
                           setFormClientOpen(false)
                           // Preenche email, contato e telefone do cadastro
-                          setFormClientEmail(c.email || '')
                           setFormClientContato(c.contato || '')
                           setFormClientTelefone(c.telefone || '')
-                          // Fallback: tenta pegar do JSON de comentarios (legado)
-                          if (!c.email) {
+                          // Preenche email(s) do cadastro
+                          let emails: string[] = []
+                          if (c.email) {
+                            emails = c.email.split(',').map((e: string) => e.trim()).filter(Boolean)
+                          } else {
+                            // Fallback: tenta pegar do JSON de comentarios (legado)
                             try {
                               const parsed = JSON.parse(c.comentarios || '{}')
                               const ct = parsed.contacts?.find((x: { email?: string }) => x.email)
-                              if (ct?.email) setFormClientEmail(ct.email)
+                              if (ct?.email) emails = [ct.email]
                             } catch {}
                           }
+                          setFormClientEmails(emails.length > 0 ? emails : [''])
                         }}
                         style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #F1F5F9' }}
                         onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F1F5F9')}
@@ -889,16 +985,45 @@ export default function VisitasPage() {
                 </div>
               </div>
 
-              {/* E-mail */}
+              {/* E-mails */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>E-mail do cliente</label>
-                <input
-                  type="email"
-                  value={formClientEmail}
-                  onChange={e => setFormClientEmail(e.target.value)}
-                  placeholder="para envio de confirmação"
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 13, boxSizing: 'border-box' }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>E-mail(s) do cliente</label>
+                  <button
+                    type="button"
+                    onClick={() => setFormClientEmails(prev => [...prev, ''])}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#0C447C', fontWeight: 700, padding: '0 4px' }}
+                  >
+                    + Adicionar e-mail
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {formClientEmails.map((email, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={e => {
+                          const updated = [...formClientEmails]
+                          updated[idx] = e.target.value
+                          setFormClientEmails(updated)
+                        }}
+                        placeholder={idx === 0 ? 'E-mail principal (confirmação)' : 'E-mail adicional'}
+                        style={{ flex: 1, padding: '8px 10px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 13, boxSizing: 'border-box' }}
+                      />
+                      {formClientEmails.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setFormClientEmails(prev => prev.filter((_, i) => i !== idx))}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 18, lineHeight: 1, padding: '0 4px', flexShrink: 0 }}
+                          title="Remover e-mail"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Responsável */}
@@ -957,14 +1082,15 @@ export default function VisitasPage() {
               </div>
 
               {/* Send email checkbox */}
-              {formClientEmail && (
+              {formClientEmails.some(e => e.trim()) && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', padding: '8px 10px', background: '#F8FAFC', borderRadius: 6 }}>
                   <input
                     type="checkbox"
                     checked={formSendEmail}
                     onChange={e => setFormSendEmail(e.target.checked)}
                   />
-                  Enviar e-mail de {editingVisit ? 'reagendamento' : 'confirmação'} para {formClientEmail}
+                  Enviar e-mail de {editingVisit ? 'reagendamento' : 'confirmação'} para{' '}
+                  {formClientEmails.filter(e => e.trim()).join(', ')}
                 </label>
               )}
             </div>
@@ -1151,34 +1277,51 @@ export default function VisitasPage() {
             </div>
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid #E2E8F0', paddingTop: 18 }}>
-              <button
-                onClick={handleSaveReport}
-                disabled={reportSaving}
-                style={{ flex: 1, minWidth: 140, padding: '9px', borderRadius: 8, border: 'none', backgroundColor: '#0C447C', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13, opacity: reportSaving ? 0.7 : 1 }}
-              >
-                {reportSaving ? 'Salvando...' : 'Salvar relatório'}
-              </button>
-              <button
-                onClick={() => { setShowDetailModal(false); openEditVisit(selectedVisit) }}
-                style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #CBD5E1', background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-              >
-                Editar agendamento
-              </button>
+            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                <button
+                  onClick={handleSaveReport}
+                  disabled={reportSaving}
+                  style={{ padding: '10px 8px', borderRadius: 8, border: 'none', backgroundColor: '#0C447C', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 12, lineHeight: 1.3, textAlign: 'center', opacity: reportSaving ? 0.7 : 1 }}
+                >
+                  {reportSaving ? 'Salvando...' : 'Salvar relatório'}
+                </button>
+                <button
+                  onClick={() => printReport(selectedVisit)}
+                  style={{ padding: '10px 8px', borderRadius: 8, border: '1px solid #CBD5E1', background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 12, lineHeight: 1.3, textAlign: 'center', color: '#374151' }}
+                >
+                  Gerar PDF do relatório
+                </button>
+                <button
+                  onClick={() => { setShowDetailModal(false); openEditVisit(selectedVisit) }}
+                  style={{ padding: '10px 8px', borderRadius: 8, border: '1px solid #CBD5E1', background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 12, lineHeight: 1.3, textAlign: 'center', color: '#374151' }}
+                >
+                  Editar agendamento
+                </button>
+                {selectedVisit.client_email ? (
+                  <button
+                    onClick={handleSendCancelEmail}
+                    style={{ padding: '10px 8px', borderRadius: 8, border: '1px solid #FBBF24', background: '#FFFBEB', color: '#92400E', cursor: 'pointer', fontWeight: 600, fontSize: 12, lineHeight: 1.3, textAlign: 'center' }}
+                  >
+                    Cancelar e notificar
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleDeleteVisit(selectedVisit.id)}
+                    style={{ padding: '10px 8px', borderRadius: 8, border: '1px solid #FCA5A5', background: 'white', color: '#EF4444', cursor: 'pointer', fontWeight: 600, fontSize: 12, lineHeight: 1.3, textAlign: 'center' }}
+                  >
+                    Excluir visita
+                  </button>
+                )}
+              </div>
               {selectedVisit.client_email && (
                 <button
-                  onClick={handleSendCancelEmail}
-                  style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #FBBF24', background: '#FFFBEB', color: '#92400E', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                  onClick={() => handleDeleteVisit(selectedVisit.id)}
+                  style={{ marginTop: 8, width: '100%', padding: '8px', borderRadius: 8, border: '1px solid #FCA5A5', background: 'white', color: '#EF4444', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}
                 >
-                  Cancelar e notificar
+                  Excluir visita
                 </button>
               )}
-              <button
-                onClick={() => handleDeleteVisit(selectedVisit.id)}
-                style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #FCA5A5', background: 'white', color: '#EF4444', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-              >
-                Excluir
-              </button>
             </div>
           </div>
         </div>
