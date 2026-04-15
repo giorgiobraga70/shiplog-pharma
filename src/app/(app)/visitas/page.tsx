@@ -37,6 +37,9 @@ interface Visit {
 interface Client {
   id: string
   empresa: string
+  contato?: string
+  email?: string
+  telefone?: string
   comentarios?: string
 }
 
@@ -80,11 +83,13 @@ export default function VisitasPage() {
   // ── Form modal ──
   const [showFormModal,    setShowFormModal]    = useState(false)
   const [editingVisit,     setEditingVisit]     = useState<Visit | null>(null)
-  const [formClientId,     setFormClientId]     = useState('')
-  const [formClientCompany,setFormClientCompany]= useState('')
-  const [formClientEmail,  setFormClientEmail]  = useState('')
-  const [formClientSearch, setFormClientSearch] = useState('')
-  const [formClientOpen,   setFormClientOpen]   = useState(false)
+  const [formClientId,      setFormClientId]      = useState('')
+  const [formClientCompany, setFormClientCompany] = useState('')
+  const [formClientEmail,   setFormClientEmail]   = useState('')
+  const [formClientContato, setFormClientContato] = useState('')
+  const [formClientTelefone,setFormClientTelefone]= useState('')
+  const [formClientSearch,  setFormClientSearch]  = useState('')
+  const [formClientOpen,    setFormClientOpen]    = useState(false)
   const [formResponsavelId,setFormResponsavelId]= useState('')
   const [formResponsavelNome,setFormResponsavelNome] = useState('')
   const [formDate,         setFormDate]         = useState('')
@@ -143,6 +148,8 @@ export default function VisitasPage() {
     setFormClientId('')
     setFormClientCompany('')
     setFormClientEmail('')
+    setFormClientContato('')
+    setFormClientTelefone('')
     setFormClientSearch('')
     setFormClientOpen(false)
     setFormResponsavelId(currentUser?.id ?? '')
@@ -159,6 +166,8 @@ export default function VisitasPage() {
     setFormClientId(visit.client_id ?? '')
     setFormClientCompany(visit.client_company)
     setFormClientEmail(visit.client_email ?? '')
+    setFormClientContato('')
+    setFormClientTelefone('')
     setFormClientSearch(visit.client_company)
     setFormClientOpen(false)
     setFormResponsavelId(visit.responsible_id ?? '')
@@ -780,11 +789,18 @@ export default function VisitasPage() {
                           setFormClientCompany(c.empresa)
                           setFormClientSearch(c.empresa)
                           setFormClientOpen(false)
-                          try {
-                            const parsed = JSON.parse(c.comentarios || '{}')
-                            const email = parsed.contacts?.find((ct: { email?: string }) => ct.email)?.email || ''
-                            setFormClientEmail(email)
-                          } catch {}
+                          // Preenche email, contato e telefone do cadastro
+                          setFormClientEmail(c.email || '')
+                          setFormClientContato(c.contato || '')
+                          setFormClientTelefone(c.telefone || '')
+                          // Fallback: tenta pegar do JSON de comentarios (legado)
+                          if (!c.email) {
+                            try {
+                              const parsed = JSON.parse(c.comentarios || '{}')
+                              const ct = parsed.contacts?.find((x: { email?: string }) => x.email)
+                              if (ct?.email) setFormClientEmail(ct.email)
+                            } catch {}
+                          }
                         }}
                         style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #F1F5F9' }}
                         onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F1F5F9')}
@@ -795,6 +811,30 @@ export default function VisitasPage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Contato + Telefone */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Contato</label>
+                  <input
+                    type="text"
+                    value={formClientContato}
+                    onChange={e => setFormClientContato(e.target.value)}
+                    placeholder="Nome do contato"
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Telefone</label>
+                  <input
+                    type="text"
+                    value={formClientTelefone}
+                    onChange={e => setFormClientTelefone(e.target.value)}
+                    placeholder="(11) 99999-9999"
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
               </div>
 
               {/* E-mail */}
