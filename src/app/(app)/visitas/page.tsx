@@ -456,6 +456,58 @@ export default function VisitasPage() {
       .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
   }, [visits, filterStatus, filterSearch])
 
+  // ── Calendar helpers ───────────────────────────────────────────────────────
+
+  function calFmt(iso: string) {
+    // Formato yyyyMMddTHHmmss para Google/Outlook
+    const d = new Date(iso)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`
+  }
+
+  function buildGoogleCalLink(visit: Visit) {
+    const start = calFmt(visit.scheduled_at)
+    const end   = calFmt(new Date(new Date(visit.scheduled_at).getTime() + visit.duration_min * 60000).toISOString())
+    const title = encodeURIComponent(`Visita – ${visit.client_company}`)
+    const details = encodeURIComponent(`Responsável: ${visit.responsible_name}${visit.client_email ? '\nE-mail: ' + visit.client_email : ''}`)
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}`
+  }
+
+  function buildOutlookLink(visit: Visit) {
+    const start = new Date(visit.scheduled_at).toISOString()
+    const end   = new Date(new Date(visit.scheduled_at).getTime() + visit.duration_min * 60000).toISOString()
+    const subject = encodeURIComponent(`Visita – ${visit.client_company}`)
+    const body = encodeURIComponent(`Responsável: ${visit.responsible_name}`)
+    return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${subject}&startdt=${start}&enddt=${end}&body=${body}`
+  }
+
+  function downloadIcs(visit: Visit) {
+    const start = calFmt(visit.scheduled_at)
+    const end   = calFmt(new Date(new Date(visit.scheduled_at).getTime() + visit.duration_min * 60000).toISOString())
+    const now   = calFmt(new Date().toISOString())
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Shiplog Pharma//Visitas//PT',
+      'BEGIN:VEVENT',
+      `UID:${visit.id}@shiplog-pharma`,
+      `DTSTAMP:${now}`,
+      `DTSTART:${start}`,
+      `DTEND:${end}`,
+      `SUMMARY:Visita – ${visit.client_company}`,
+      `DESCRIPTION:Responsável: ${visit.responsible_name}${visit.client_email ? '\\nE-mail: ' + visit.client_email : ''}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n')
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `visita-${visit.client_company.replace(/\s+/g, '-')}.ics`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // ── Formatters ─────────────────────────────────────────────────────────────
 
   function fmtDate(iso: string) {
@@ -961,6 +1013,38 @@ export default function VisitasPage() {
               {selectedVisit.last_email_sent_at && (
                 <div style={{ color: '#6B7280', fontSize: 12 }}>Último e-mail enviado: {fmtDateTime(selectedVisit.last_email_sent_at)}</div>
               )}
+            </div>
+
+            {/* Adicionar ao calendário */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Adicionar ao calendário</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <a
+                  href={buildGoogleCalLink(selectedVisit)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 6, border: '1px solid #CBD5E1', background: 'white', color: '#374151', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#4285F4" strokeWidth="2"/><line x1="16" y1="2" x2="16" y2="6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/><line x1="8" y1="2" x2="8" y2="6" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/><line x1="3" y1="10" x2="21" y2="10" stroke="#4285F4" strokeWidth="2"/></svg>
+                  Google Calendar
+                </a>
+                <a
+                  href={buildOutlookLink(selectedVisit)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 6, border: '1px solid #CBD5E1', background: 'white', color: '#374151', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#0078D4" strokeWidth="2"/><line x1="16" y1="2" x2="16" y2="6" stroke="#0078D4" strokeWidth="2" strokeLinecap="round"/><line x1="8" y1="2" x2="8" y2="6" stroke="#0078D4" strokeWidth="2" strokeLinecap="round"/><line x1="3" y1="10" x2="21" y2="10" stroke="#0078D4" strokeWidth="2"/></svg>
+                  Outlook
+                </a>
+                <button
+                  onClick={() => downloadIcs(selectedVisit)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 6, border: '1px solid #CBD5E1', background: 'white', color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="17" width="18" height="4" rx="1" stroke="#374151" strokeWidth="2"/></svg>
+                  Baixar .ics
+                </button>
+              </div>
             </div>
 
             {/* Status buttons */}
