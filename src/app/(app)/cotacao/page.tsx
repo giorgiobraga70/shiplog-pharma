@@ -42,8 +42,10 @@ function applyDiscount(bd: PricingBreakdown, discount: number): PricingBreakdown
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function breakdownFromSavedItem(si: any, product: ExtProduct | undefined, fornecedor: string, rate: number): PricingBreakdown | null {
-  const hasFull = (si.finalPriceUnit ?? 0) > 0 && si.finalPriceUnitSIpi != null
-  if (hasFull) {
+  const hasPrices = (si.finalPriceUnit ?? 0) > 0
+  if (hasPrices) {
+    // Usa preços salvos diretamente (sem recalcular)
+    // SIpi/SImp podem ser 0 para cotações antigas que não os salvavam
     return {
       productId: product?.id ?? si.partNumber,
       description: si.description ?? '',
@@ -54,18 +56,19 @@ function breakdownFromSavedItem(si: any, product: ExtProduct | undefined, fornec
       weightKg: si.weightKg ?? 0,
       fobUsdBox: 0, navalUsdBox: 0, insuranceUsdBox: 0, cifUsdBox: 0, cifBrlBox: 0,
       iiValue: 0, ipiValue: 0, pisValue: 0, cofinsValue: 0, icmsValue: 0, totalTaxesBrl: 0,
-      customsPerBox: 0, basePriceBox: si.finalPriceBox, basePriceUnit: si.finalPriceUnit, markupRate: 0,
+      customsPerBox: 0, basePriceBox: si.finalPriceBox ?? 0, basePriceUnit: si.finalPriceUnit, markupRate: 0,
       finalPriceUnit:     si.finalPriceUnit,
-      finalPriceBox:      si.finalPriceBox,
-      totalBrl:           si.totalBrl,
-      finalPriceUnitSIpi: si.finalPriceUnitSIpi,
-      finalPriceBoxSIpi:  si.finalPriceBoxSIpi,
-      totalSIpiBrl:       si.totalSIpiBrl,
-      finalPriceUnitSImp: si.finalPriceUnitSImp,
-      finalPriceBoxSImp:  si.finalPriceBoxSImp,
-      totalSImpBrl:       si.totalSImpBrl,
+      finalPriceBox:      si.finalPriceBox  ?? 0,
+      totalBrl:           si.totalBrl       ?? 0,
+      finalPriceUnitSIpi: si.finalPriceUnitSIpi ?? 0,
+      finalPriceBoxSIpi:  si.finalPriceBoxSIpi  ?? 0,
+      totalSIpiBrl:       si.totalSIpiBrl        ?? 0,
+      finalPriceUnitSImp: si.finalPriceUnitSImp ?? 0,
+      finalPriceBoxSImp:  si.finalPriceBoxSImp  ?? 0,
+      totalSImpBrl:       si.totalSImpBrl        ?? 0,
     }
   }
+  // Sem preços salvos: tenta recalcular do produto
   if (product) return buildBreakdown(product, si.qtyBoxes, fornecedor, rate)
   return null
 }
@@ -925,11 +928,27 @@ export default function CotacaoPage() {
 
     if (editingLineItemId) {
       // Substituir o item sendo editado, mantendo sua posição na lista
-      setLineItems((prev) => prev.map((li) =>
-        li.id === editingLineItemId
-          ? { id: editingLineItemId, product, qtyBoxes: qty, discount, breakdown }
-          : li
-      ))
+      setLineItems((prev) => prev.map((li) => {
+        if (li.id !== editingLineItemId) return li
+        // Se o novo breakdown tem preços zero mas o item original tinha preços salvos,
+        // recalcula o breakdown usando os preços unitários do item original (ajusta qty)
+        let finalBreakdown = breakdown
+        if (breakdown.finalPriceUnit === 0 && li.breakdown.finalPriceUnit > 0) {
+          const base = li.breakdown
+          const pcsPerBox = product.pcsPerBox || li.product.pcsPerBox || 1
+          finalBreakdown = applyDiscount({
+            ...base,
+            qtyBoxes: qty,
+            qtyUnits: qty * pcsPerBox,
+            volumeM3: qty * (product.volumeBoxM3 || 0),
+            weightKg: qty * (product.weightGrossKg || 0),
+            totalBrl:     base.finalPriceBox * qty,
+            totalSIpiBrl: base.finalPriceBoxSIpi * qty,
+            totalSImpBrl: base.finalPriceBoxSImp * qty,
+          }, discount)
+        }
+        return { id: editingLineItemId, product, qtyBoxes: qty, discount, breakdown: finalBreakdown }
+      }))
       setEditingLineItemId(null)
     } else {
       setLineItems((prev) => [
