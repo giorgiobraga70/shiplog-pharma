@@ -15,10 +15,21 @@ export async function POST(request: Request) {
     }
     const unique = Array.from(seen.values())
 
-    // Upsert por part_number (unique constraint)
+    // Apaga todo o catálogo atual antes de inserir o novo lote.
+    // Cada upload da planilha substitui o catálogo anterior por completo
+    // (cotações já salvas não são afetadas — elas guardam os dados do
+    // produto como retrato em JSON, sem referência viva à tabela products).
+    const { error: deleteError } = await supabaseServer
+      .from('products')
+      .delete()
+      .not('id', 'is', null)
+
+    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+
+    // Insere o novo lote já com a numeração de sequência da planilha
     const { data, error } = await supabaseServer
       .from('products')
-      .upsert(unique, { onConflict: 'part_number' })
+      .insert(unique)
       .select('id')
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
