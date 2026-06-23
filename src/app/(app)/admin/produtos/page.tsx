@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+import Link from 'next/link'
 import { useUserRole } from '@/hooks/useUserRole'
 
 // ─── Tipos ─────────────────────────────────────────────────────────────────────
@@ -415,9 +416,19 @@ export default function AdminProdutosPage() {
 
           <div className="flex-1" />
 
-          {/* Exportar e Importar — apenas admin */}
+          {/* Tipos, Exportar e Importar — apenas admin */}
           {isAdmin && (
             <>
+              <Link
+                href="/admin/tipos-produto"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
+                style={{ borderColor: '#0C3460', color: '#0C3460' }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.023.195 1.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 7V3a4 4 0 014-4z" />
+                </svg>
+                Tipos
+              </Link>
               <button
                 onClick={handleExportar}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
