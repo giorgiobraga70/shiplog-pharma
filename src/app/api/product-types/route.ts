@@ -7,6 +7,12 @@ function numOrNull(v: unknown): number | null {
   return isNaN(n) ? null : n
 }
 
+// ii_rate/ipi_rate/pis_rate/cofins_rate/icms_rate são NOT NULL no banco —
+// "sem esse imposto" é representado como 0, não como null.
+function numOrZero(v: unknown): number {
+  return numOrNull(v) ?? 0
+}
+
 // ── GET: lista todos os tipos de produto cadastrados ────────────────────────
 export async function GET() {
   try {
@@ -34,11 +40,11 @@ export async function POST(request: Request) {
     const row = {
       product_type: productType,
       ncm_code: body.ncm_code ? String(body.ncm_code).trim() : null,
-      ii_rate: numOrNull(body.ii_rate),
-      ipi_rate: numOrNull(body.ipi_rate),
-      pis_rate: numOrNull(body.pis_rate),
-      cofins_rate: numOrNull(body.cofins_rate),
-      icms_rate: numOrNull(body.icms_rate),
+      ii_rate: numOrZero(body.ii_rate),
+      ipi_rate: numOrZero(body.ipi_rate),
+      pis_rate: numOrZero(body.pis_rate),
+      cofins_rate: numOrZero(body.cofins_rate),
+      icms_rate: numOrZero(body.icms_rate),
       mkup_10: numOrNull(body.mkup_10),
       mkup_20: numOrNull(body.mkup_20),
       mkup_50: numOrNull(body.mkup_50),
@@ -79,11 +85,11 @@ export async function PATCH(request: Request) {
 
     const update = {
       ncm_code: body.ncm_code ? String(body.ncm_code).trim() : null,
-      ii_rate: numOrNull(body.ii_rate),
-      ipi_rate: numOrNull(body.ipi_rate),
-      pis_rate: numOrNull(body.pis_rate),
-      cofins_rate: numOrNull(body.cofins_rate),
-      icms_rate: numOrNull(body.icms_rate),
+      ii_rate: numOrZero(body.ii_rate),
+      ipi_rate: numOrZero(body.ipi_rate),
+      pis_rate: numOrZero(body.pis_rate),
+      cofins_rate: numOrZero(body.cofins_rate),
+      icms_rate: numOrZero(body.icms_rate),
       mkup_10: numOrNull(body.mkup_10),
       mkup_20: numOrNull(body.mkup_20),
       mkup_50: numOrNull(body.mkup_50),
