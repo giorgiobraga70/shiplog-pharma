@@ -424,6 +424,16 @@ export default function CotacaoPage() {
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
+  // Tipos de produto disponíveis — derivado dos produtos carregados (sempre
+  // reflete o que foi importado da planilha, em vez de uma lista fixa no código)
+  const productTypes = useMemo(() => {
+    const set = new Set<string>()
+    for (const p of products) {
+      if (p.productType) set.add(p.productType)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [products])
+
   // Produtos filtrados (máx 20) — busca + filtros de tipo/volume/cor
   const filteredProducts = useMemo(() => {
     const colorMap: Record<string, string[]> = {
@@ -1522,11 +1532,9 @@ export default function CotacaoPage() {
             <label className={labelClass}>Tipo</label>
             <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className={inputClass}>
               <option value="">Todos os tipos</option>
-              <option value="Frasco">Frasco</option>
-              <option value="Ampola">Ampola</option>
-              <option value="Rolha">Rolha</option>
-              <option value="Selo Alum Flip">Selo Alum Flip</option>
-              <option value="Selo Alu-plas">Selo Alu-plas</option>
+              {productTypes.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </select>
           </div>
           <div className="flex-1 min-w-[120px]">
