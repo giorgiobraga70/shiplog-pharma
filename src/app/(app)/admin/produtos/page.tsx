@@ -342,9 +342,8 @@ export default function AdminProdutosPage() {
   }
 
   // ── Estilos comuns ───────────────────────────────────────────────────────────
-  const inputClass =
-    'px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition'
-
+const inputClass =
+    'px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition'
   const today = new Date().toLocaleDateString('pt-BR')
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -362,11 +361,11 @@ export default function AdminProdutosPage() {
         </span>
       </div>
 
-      {/* ── Barra de filtros e ações ────────────────────────────────────────── */}
+     {/* ── Barra de filtros e ações ────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
           {/* Busca */}
-          <div className="flex-1 min-w-[220px]">
+          <div className="flex-1 min-w-[130px]">
             <div className="relative">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -375,14 +374,14 @@ export default function AdminProdutosPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por código, descrição..."
+                placeholder="Buscar..."
                 className={`${inputClass} w-full pl-9`}
               />
             </div>
           </div>
 
           {/* Tipo */}
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={`${inputClass} min-w-[160px]`}>
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={`${inputClass} min-w-[110px]`}>
             <option value="">Todos os tipos</option>
             <option value="Frasco">Frasco</option>
             <option value="Ampola">Ampola</option>
@@ -392,7 +391,7 @@ export default function AdminProdutosPage() {
           </select>
 
           {/* Volume */}
-          <select value={filterVolume} onChange={(e) => setFilterVolume(e.target.value)} className={`${inputClass} min-w-[140px]`}>
+          <select value={filterVolume} onChange={(e) => setFilterVolume(e.target.value)} className={`${inputClass} min-w-[125px]`}>
             <option value="">Todos os volumes</option>
             {['2', '3', '4', '5', '7', '10', '15', '20', '30', '50', '100'].map((v) => (
               <option key={v} value={v}>{v}ml</option>
@@ -400,7 +399,7 @@ export default function AdminProdutosPage() {
           </select>
 
           {/* Cor */}
-          <select value={filterColor} onChange={(e) => setFilterColor(e.target.value)} className={`${inputClass} min-w-[150px]`}>
+          <select value={filterColor} onChange={(e) => setFilterColor(e.target.value)} className={`${inputClass} min-w-[110px]`}>
             <option value="">Todas as cores</option>
             <option value="Ambar">Ambar</option>
             <option value="Transparente">Transparente</option>
@@ -409,7 +408,7 @@ export default function AdminProdutosPage() {
           </select>
 
           {/* Fornecedor */}
-          <select value={filterFornecedor} onChange={(e) => setFilterFornecedor(e.target.value)} className={`${inputClass} min-w-[140px]`}>
+          <select value={filterFornecedor} onChange={(e) => setFilterFornecedor(e.target.value)} className={`${inputClass} min-w-[90px]`}>
             <option value="Four Star">Four Star</option>
             <option value="Munan">Munan</option>
           </select>
@@ -421,20 +420,20 @@ export default function AdminProdutosPage() {
             <>
               <Link
                 href="/admin/tipos-produto"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border-2 whitespace-nowrap transition-colors hover:bg-blue-950 hover:text-white"
                 style={{ borderColor: '#0C3460', color: '#0C3460' }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.023.195 1.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 7V3a4 4 0 014-4z" />
                 </svg>
                 Tipos
               </Link>
               <button
                 onClick={handleExportar}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors hover:bg-blue-950 hover:text-white"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border-2 whitespace-nowrap transition-colors hover:bg-blue-950 hover:text-white"
                 style={{ borderColor: '#0C3460', color: '#0C3460' }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
                 Exportar
@@ -443,18 +442,13 @@ export default function AdminProdutosPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={importLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-semibold whitespace-nowrap transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: '#0C3460' }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
                 </svg>
                 {importLoading ? 'Lendo...' : 'Importar'}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
 
       {/* ── Tabela de produtos ─────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
