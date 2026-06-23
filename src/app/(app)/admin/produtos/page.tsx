@@ -364,7 +364,7 @@ export default function AdminProdutosPage() {
 
       {/* ── Barra de filtros e ações ────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
           {/* Busca */}
           <div className="flex-1 min-w-[220px]">
             <div className="relative">
