@@ -787,18 +787,30 @@ export default function CotacaoPage() {
   const totals = useMemo(() => {
     const items = lineItems.map((li) => li.breakdown)
     const subtotal = items.reduce((a, r) => a + r.totalBrl, 0)
+    const subtotalSIpi = items.reduce((a, r) => a + r.totalSIpiBrl, 0)
+    const subtotalSImp = items.reduce((a, r) => a + r.totalSImpBrl, 0)
     const discPct = parseFloat(globalDiscount.replace(',', '.')) || 0
     const discValue = subtotal * (discPct / 100)
+    const discValueSIpi = subtotalSIpi * (discPct / 100)
+    const discValueSImp = subtotalSImp * (discPct / 100)
     const totalFinal = subtotal + discValue // discPct negativo reduz, positivo aumenta
+    const totalFinalSIpi = subtotalSIpi + discValueSIpi
+    const totalFinalSImp = subtotalSImp + discValueSImp
     return {
       boxes: items.reduce((a, r) => a + r.qtyBoxes, 0),
       units: items.reduce((a, r) => a + r.qtyUnits, 0),
       volume: items.reduce((a, r) => a + r.volumeM3, 0),
       weight: items.reduce((a, r) => a + r.weightKg, 0),
       total: subtotal,
+      totalSIpi: subtotalSIpi,
+      totalSImp: subtotalSImp,
       discPct,
       discValue,
+      discValueSIpi,
+      discValueSImp,
       totalFinal,
+      totalFinalSIpi,
+      totalFinalSImp,
     }
   }, [lineItems, globalDiscount])
 
@@ -1175,8 +1187,8 @@ export default function CotacaoPage() {
         globalDiscountPct: totals.discPct,
         globalDiscountValue: totals.discValue,
         grandTotalBrl: totals.totalFinal,
-        grandTotalSIpiBrl: lineItems.reduce((a, i) => a + i.breakdown.totalSIpiBrl, 0),
-        grandTotalSImpBrl: lineItems.reduce((a, i) => a + i.breakdown.totalSImpBrl, 0),
+        grandTotalSIpiBrl: totals.totalFinalSIpi,
+        grandTotalSImpBrl: totals.totalFinalSImp,
       },
     }
     localStorage.setItem('quotation_print_data', JSON.stringify(printData))
